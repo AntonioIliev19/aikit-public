@@ -140,7 +140,7 @@ Signed updates require a production signing key. Source builds have no productio
 
 ## Build from source
 
-Requires Go 1.27.3. Native indexing builds need a C compiler; other CLI commands
+Requires Go 1.27.4. Native indexing builds need a C compiler; other CLI commands
 and read-only index queries can use a CGO-disabled build. SQLite is embedded;
 no separate database installation or model is required.
 

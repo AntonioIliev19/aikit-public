@@ -1017,7 +1017,7 @@
       },
       {
         "name": "aikit:go-version",
-        "value": "go1.27.3"
+        "value": "go1.27.4"
       }
     ]
   },

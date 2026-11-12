@@ -1,6 +1,6 @@
 module aikit-parser-compat
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/tree-sitter/go-tree-sitter v0.24.0

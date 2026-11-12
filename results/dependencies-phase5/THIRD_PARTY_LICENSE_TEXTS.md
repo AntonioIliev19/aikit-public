@@ -6016,7 +6016,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ```
 
-## Go toolchain go1.27.3 — LICENSE
+## Go toolchain go1.27.4 — LICENSE
 
 ```text
 Copyright 2009 The Go Authors.
@@ -6049,7 +6049,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ```
 
-## Go toolchain go1.27.3 — PATENTS
+## Go toolchain go1.27.4 — PATENTS
 
 ```text
 Additional IP Rights Grant (Patents)
@@ -6077,7 +6077,7 @@ shall terminate as of the date such litigation is filed.
 
 ```
 
-## Go toolchain go1.27.3 — src/vendor/golang.org/x/crypto/LICENSE
+## Go toolchain go1.27.4 — src/vendor/golang.org/x/crypto/LICENSE
 
 ```text
 Copyright 2009 The Go Authors.
@@ -6110,7 +6110,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ```
 
-## Go toolchain go1.27.3 — src/vendor/golang.org/x/net/LICENSE
+## Go toolchain go1.27.4 — src/vendor/golang.org/x/net/LICENSE
 
 ```text
 Copyright 2009 The Go Authors.
@@ -6143,7 +6143,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ```
 
-## Go toolchain go1.27.3 — src/vendor/golang.org/x/sys/LICENSE
+## Go toolchain go1.27.4 — src/vendor/golang.org/x/sys/LICENSE
 
 ```text
 Copyright 2009 The Go Authors.
@@ -6176,7 +6176,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ```
 
-## Go toolchain go1.27.3 — src/vendor/golang.org/x/text/LICENSE
+## Go toolchain go1.27.4 — src/vendor/golang.org/x/text/LICENSE
 
 ```text
 Copyright 2009 The Go Authors.

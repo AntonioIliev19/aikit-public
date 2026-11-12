@@ -1,6 +1,6 @@
 module github.com/AntonioIliev19/aikit-public
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/denormal/go-gitignore v0.0.0-20180930084346-ae8ad1d07817
