@@ -1,0 +1,10 @@
+*.go text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
+*.pdf binary
+*.png binary
+# Retain exact upstream notices and native command evidence.
+results/**/THIRD_PARTY_LICENSE_TEXTS.md -whitespace

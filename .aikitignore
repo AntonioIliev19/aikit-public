@@ -1,0 +1,11 @@
+# Example project ignore policy (AIKIT must also enforce immutable hard denies)
+node_modules/
+dist/
+build/
+coverage/
+bin/
+obj/
+.next/
+.venv/
+vendor/
+.aikit/state/

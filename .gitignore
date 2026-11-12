@@ -1,0 +1,22 @@
+# Local AIKIT index state and caches
+.aikit/state/
+.aikit/cache/
+.aikit/**/*.sqlite
+.aikit/**/*.sqlite-*
+.claude/settings.local.json
+# Go outputs
+/aikit
+/aikit.exe
+*.test
+*.out
+# Local documentation, IDE settings and scratch files
+/docs/
+/.idea/
+/tmp/
+/output/
+/results/*
+!/results/dependencies-phase5/
+# Common secrets; security policy must enforce hard exclusions independently
+.env
+.env.*
+!.env.example
