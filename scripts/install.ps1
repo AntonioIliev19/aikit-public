@@ -137,7 +137,10 @@ function Install-ConMesh([string]$Source) {
     } finally {
         if ([IO.File]::Exists($stage)) { [IO.File]::Delete($stage) }
     }
-    if ([IO.File]::Exists($backup)) { [IO.File]::Delete($backup) }
+    if ([IO.File]::Exists($backup)) {
+        try { [IO.File]::Delete($backup) }
+        catch { Write-Warning 'ConMesh was installed. Windows retained the previous executable backup.' }
+    }
     $env:Path = $processPath
     Send-ConMeshEnvironmentChange
     Write-Host "Installed ConMesh: $target"
