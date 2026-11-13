@@ -73,9 +73,17 @@ func Run(args []string, stdout, stderr io.Writer, version string) int {
 		if file, ok := stdout.(*os.File); !g.noInput && out.live && ok && isTerminal(os.Stdin) && enableColor(file) {
 			cwd, _ := os.Getwd()
 			info := menuInfo{width: terminalWidth(file), workspace: loadWorkspace(context.Background(), cwd), packages: loadMenuPackages(cwd)}
+			// The menu runs on the terminal's alternate screen, like full-screen
+			// terminal programs: the user's earlier commands are hidden while it is
+			// open and come back unchanged when it closes.
+			screen := &altScreen{out: stdout}
+			screen.enter()
+			defer screen.leave()
+			info.leaveScreen = screen.leave
 			err := runMenu(os.Stdin, stdout, out, version, func(args []string) {
 				Run(g.with(args), stdout, stderr, version)
 			}, loadMenuUpdates(), os.Getenv("CONMESH_AUTO_UPDATE_CHECK") == "1", terminalMenuMode(os.Stdin), info)
+			screen.leave() // before any error, so it stays visible
 			if err != nil {
 				fmt.Fprintln(stderr, "conmesh:", err)
 				return 1

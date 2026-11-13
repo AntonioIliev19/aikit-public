@@ -406,3 +406,28 @@ func TestMenuInstallOtherSourceUsesPackageFlow(t *testing.T) {
 		t.Fatalf("commands = %v, want %v", calls, want)
 	}
 }
+
+func TestAltScreenEnterLeaveOnce(t *testing.T) {
+	var out bytes.Buffer
+	s := &altScreen{out: &out}
+	s.enter()
+	s.leave()
+	s.leave()
+	if got := out.String(); got != "\x1b[?1049h\x1b[H\x1b[2J\x1b[?1049l" {
+		t.Fatalf("screen sequence %q", got)
+	}
+}
+
+// Help and Self-update leave the alternate screen first so their output stays.
+func TestMenuLeavesScreenBeforeLastingOutput(t *testing.T) {
+	var events []string
+	info := menuInfo{leaveScreen: func() { events = append(events, "leave") }}
+	if err := runMenu(strings.NewReader(moveTo(t, "help")), &bytes.Buffer{}, terminal{}, "dev", func(args []string) {
+		events = append(events, strings.Join(args, " "))
+	}, menuUpdates{}, false, nil, info); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(events, []string{"leave", "--help"}) {
+		t.Fatalf("events = %v", events)
+	}
+}

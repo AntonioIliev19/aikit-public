@@ -44,6 +44,29 @@ type menuInfo struct {
 	width     int
 	workspace workspaceStatus
 	packages  menuPackages
+	// leaveScreen returns to the normal screen before output that must stay
+	// visible after the menu closes (Help, Self-update). Nil in tests.
+	leaveScreen func()
+}
+
+// altScreen switches to the terminal's alternate screen buffer and back.
+// leave is safe to call more than once.
+type altScreen struct {
+	out    io.Writer
+	active bool
+}
+
+func (s *altScreen) enter() {
+	if _, err := io.WriteString(s.out, "\x1b[?1049h\x1b[H\x1b[2J"); err == nil {
+		s.active = true
+	}
+}
+
+func (s *altScreen) leave() {
+	if s.active {
+		s.active = false
+		io.WriteString(s.out, "\x1b[?1049l")
+	}
 }
 
 // menuPackages gives the menu direct access to installed and predefined
@@ -267,6 +290,11 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 		return err
 	}
 	reader := bufio.NewReader(input)
+	leave := func() {
+		if info.leaveScreen != nil {
+			info.leaveScreen()
+		}
+	}
 	var inputErr error
 	pick := func(title string, options []menuOption) int {
 		if inputErr != nil {
@@ -327,10 +355,15 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 		case "doctor":
 			run([]string{"doctor"})
 		case "help":
+			leave()
 			run([]string{"--help"})
 			return nil
 		case "self-update":
-			err := updates.install(ctx, out, version, confirm, run)
+			// The update closes the menu; its result must stay on the normal screen.
+			err := updates.install(ctx, out, version, confirm, func(args []string) {
+				leave()
+				run(args)
+			})
 			if err == errMenuExit {
 				return nil
 			}
