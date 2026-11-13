@@ -53,8 +53,8 @@ func parseNative(ctx context.Context, language string, data []byte) (Result, err
 	}
 	var result Result
 	nodes := 0
-	var symbols func(*sitter.Node, int) error
-	symbols = func(n *sitter.Node, depth int) error {
+	var symbols func(*sitter.Node, int, bool) error
+	symbols = func(n *sitter.Node, depth int, local bool) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -63,7 +63,8 @@ func parseNative(ctx context.Context, language string, data []byte) (Result, err
 			return ErrLimit
 		}
 		kind := n.Kind()
-		if SymbolKind(kind) {
+		// Function-local variables are noise for symbol lookup and use up MaxSymbols.
+		if SymbolKind(kind) && !(local && kind == "variable_declarator") {
 			if name := n.ChildByFieldName("name"); name != nil {
 				if len(result.Symbols) >= MaxSymbols || name.EndByte()-name.StartByte() > 256 {
 					return ErrLimit
@@ -71,14 +72,15 @@ func parseNative(ctx context.Context, language string, data []byte) (Result, err
 				result.Symbols = append(result.Symbols, Symbol{name.Utf8Text(data), kind, int(n.StartPosition().Row) + 1, int(n.EndPosition().Row) + 1})
 			}
 		}
+		local = local || localScope(kind)
 		for i := uint(0); i < n.NamedChildCount(); i++ {
-			if err := symbols(n.NamedChild(i), depth+1); err != nil {
+			if err := symbols(n.NamedChild(i), depth+1, local); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-	if err := symbols(root, 0); err != nil {
+	if err := symbols(root, 0, false); err != nil {
 		return Result{}, err
 	}
 	// Split oversized declarations recursively at AST children; leaf lines remain bounded.

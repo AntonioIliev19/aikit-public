@@ -46,6 +46,25 @@ func TestScannerRetrievalSamePolicy(t *testing.T) {
 	if _, _, err := AuthorizedRead(root, "safe/x.ts"); err != nil {
 		t.Fatal(err)
 	}
+	if r := s.SkipReasons; r.Total() != s.Skipped || r.Ignored != 2 || r.HardDenied != 1 {
+		t.Fatalf("skip reasons %+v for %d skipped", r, s.Skipped)
+	}
+	_, _, err = AuthorizedRead(root, "secret.ts")
+	if !errors.Is(err, ErrSensitive) || !errors.Is(err, security.ErrDenied) || err.Error() != security.ErrDenied.Error() {
+		t.Fatal("sensitive content reason", err)
+	}
+	os.WriteFile(filepath.Join(dir, "safe", "bin.ts"), []byte("a\x00b"), 0600)
+	_, _, err = AuthorizedRead(root, "safe/bin.ts")
+	if !errors.Is(err, ErrBinary) || !errors.Is(err, security.ErrDenied) || errors.Is(err, ErrSensitive) {
+		t.Fatal("binary content reason", err)
+	}
+	var counted SkipReasons
+	counted.CountReadError(ErrSensitive)
+	counted.CountReadError(ErrBinary)
+	counted.CountReadError(security.ErrDenied)
+	if counted != (SkipReasons{SensitiveContent: 1, Binary: 1, Unreadable: 1}) {
+		t.Fatalf("read error classification %+v", counted)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := Scan(ctx, root); !errors.Is(err, context.Canceled) {

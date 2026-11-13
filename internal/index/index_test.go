@@ -188,16 +188,23 @@ func TestExclusionsAcrossPersistenceAndRetrieval(t *testing.T) {
 		"secret.ts":                           "export const token = '" + marker + "'; // api_key=longSyntheticValue123456\n",
 		"api_key=longSyntheticValue123456.ts": "export const Hidden = '" + marker + "';",
 		"bad.bin":                             "\x00" + marker, "big.txt": strings.Repeat("x", repository.MaxFileBytes+1),
-		"malformed.ts":      "export function Broken( { " + marker,
+		// Syntax errors are not a policy exclusion: the file stays searchable as plain text.
+		"malformed.ts":      "export function Broken( { malformedfixtureword",
 		"nested/allowed.ts": "export function Allowed() { return 'allowedfixtureword'; }\n",
 	}
 	c, dir := fixture(t, true, files)
 	p := update(t, c)
-	if p.Skipped < 8 || p.Malformed != 1 {
+	if p.Skipped < 7 || p.Malformed != 1 || p.PlainText != 1 || p.SkipReasons.Total() != p.Skipped {
 		t.Fatal("missing explicit exclusion outcomes", p)
 	}
 	if len(search(t, c, marker)) != 0 || len(search(t, c, "allowedfixtureword")) != 1 {
 		t.Fatal("policy retrieval mismatch")
+	}
+	if got := search(t, c, "malformedfixtureword"); len(got) != 1 || got[0].Path != "malformed.ts" {
+		t.Fatal("malformed source not kept as plain text", got)
+	}
+	if syms, err := c.FindSymbol(context.Background(), Query{Text: "Broken"}); err != nil || len(syms) != 0 {
+		t.Fatal("malformed source produced symbols", syms, err)
 	}
 	db, err := c.open(context.Background(), false)
 	if err != nil {

@@ -25,11 +25,65 @@ const MaxSourceBytes = 512 << 20
 var ErrLimit = errors.New("repository resource limit exceeded")
 var ErrStale = errors.New("INDEX_STALE: source or policy changed; run conmesh index")
 
+// ErrSensitive and ErrBinary refine security.ErrDenied (errors.Is still matches
+// it, and the message is unchanged) so callers can report why content was excluded.
+var ErrSensitive error = deniedReason("sensitive_content")
+var ErrBinary error = deniedReason("binary")
+
+type deniedReason string
+
+func (deniedReason) Error() string    { return security.ErrDenied.Error() }
+func (deniedReason) Unwrap() error    { return security.ErrDenied }
+func (d deniedReason) Reason() string { return string(d) }
+
+// SkipReasons breaks a Skipped count down by cause. Every skipped file is
+// counted in exactly one field, so the fields sum to the Skipped total.
+type SkipReasons struct {
+	// Ignored entries matched .gitignore, .aikitignore or .conmeshignore rules.
+	Ignored int `json:"ignored,omitempty"`
+	// HardDenied entries matched built-in denied names (for example .git,
+	// node_modules, vendor, build, bin, dist, .env, key files).
+	HardDenied int `json:"hard_denied,omitempty"`
+	// UnsupportedEntry covers symlinks, reparse points and other non-regular entries.
+	UnsupportedEntry int `json:"unsupported_entry,omitempty"`
+	// TooLarge files exceed MaxFileBytes.
+	TooLarge int `json:"too_large,omitempty"`
+	// SensitiveContent files matched a secret pattern.
+	SensitiveContent int `json:"sensitive_content,omitempty"`
+	// Binary files are not valid UTF-8 or contain NUL bytes.
+	Binary int `json:"binary,omitempty"`
+	// ParserLimit files exceeded parser limits even as plain text.
+	ParserLimit int `json:"parser_limit,omitempty"`
+	// Changed files changed or became denied between parsing and persistence.
+	Changed int `json:"changed_during_index,omitempty"`
+	// Unreadable files could not be read safely for any other reason, including
+	// files replaced or newly denied between the scan and the read.
+	Unreadable int `json:"unreadable,omitempty"`
+}
+
+// Total returns the sum of all reasons.
+func (r SkipReasons) Total() int {
+	return r.Ignored + r.HardDenied + r.UnsupportedEntry + r.TooLarge + r.SensitiveContent + r.Binary + r.ParserLimit + r.Changed + r.Unreadable
+}
+
+// CountReadError classifies an AuthorizedRead failure.
+func (r *SkipReasons) CountReadError(err error) {
+	switch {
+	case errors.Is(err, ErrSensitive):
+		r.SensitiveContent++
+	case errors.Is(err, ErrBinary):
+		r.Binary++
+	default:
+		r.Unreadable++
+	}
+}
+
 type Snapshot struct {
-	Root    *os.Root
-	Policy  security.Policy
-	Files   []string
-	Skipped int
+	Root        *os.Root
+	Policy      security.Policy
+	Files       []string
+	Skipped     int
+	SkipReasons SkipReasons
 }
 
 func Scan(ctx context.Context, root *os.Root) (*Snapshot, error) {
@@ -78,8 +132,18 @@ func Scan(ctx context.Context, root *os.Root) (*Snapshot, error) {
 			if err != nil {
 				return errors.New("repository entry unavailable")
 			}
-			if security.CheckEntry(info) != nil || s.Policy.Denied(name, info.IsDir()) {
+			if security.CheckEntry(info) != nil {
 				s.Skipped++
+				s.SkipReasons.UnsupportedEntry++
+				continue
+			}
+			if s.Policy.Denied(name, info.IsDir()) {
+				s.Skipped++
+				if security.HardDenied(name, info.IsDir()) {
+					s.SkipReasons.HardDenied++
+				} else {
+					s.SkipReasons.Ignored++
+				}
 				continue
 			}
 			if info.IsDir() {
@@ -90,6 +154,7 @@ func Scan(ctx context.Context, root *os.Root) (*Snapshot, error) {
 			}
 			if info.Size() > MaxFileBytes {
 				s.Skipped++
+				s.SkipReasons.TooLarge++
 				continue
 			}
 			sourceBytes += info.Size()
@@ -118,8 +183,11 @@ func (s *Snapshot) Read(name string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	if !utf8.Valid(data) || strings.ContainsRune(string(data), 0) || security.SensitiveContent(data) {
-		return nil, "", security.ErrDenied
+	if !utf8.Valid(data) || strings.ContainsRune(string(data), 0) {
+		return nil, "", ErrBinary
+	}
+	if security.SensitiveContent(data) {
+		return nil, "", ErrSensitive
 	}
 	return data, Digest(data), nil
 }

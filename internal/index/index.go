@@ -23,13 +23,26 @@ type Progress struct {
 	Indexed                int    `json:"indexed"`
 	Unchanged              int    `json:"unchanged"`
 	Skipped                int    `json:"skipped"`
-	Malformed              int    `json:"malformed"`
-	Limited                int    `json:"limited"`
-	Deleted                int    `json:"deleted"`
-	Workers                int    `json:"workers"`
-	Queue                  int    `json:"queue"`
-	MemoryTargetBytes      int64  `json:"go_memory_target_bytes"`
-	ElapsedMillis          int64  `json:"elapsed_ms"`
+	// SkipReasons breaks Skipped down by cause; its fields sum to Skipped.
+	SkipReasons SkipReasons `json:"skip_reasons"`
+	// Malformed counts files parsed in this run that had syntax errors; they are
+	// indexed as plain text (no symbols) and also counted in PlainText.
+	Malformed int `json:"malformed"`
+	// Limited counts files parsed in this run that exceeded parser limits; they
+	// are indexed as plain text when possible (PlainText), otherwise skipped
+	// (SkipReasons.ParserLimit). Unchanged files are not re-parsed or re-counted.
+	Limited int `json:"limited"`
+	// PlainText counts files indexed as plain text in this run after a native
+	// parse failure.
+	PlainText int `json:"plain_text_fallback"`
+	// Refreshed is true when stored entries came from older extraction rules
+	// (or an older schema) and every file was re-extracted in this run.
+	Refreshed         bool  `json:"refreshed,omitempty"`
+	Deleted           int   `json:"deleted"`
+	Workers           int   `json:"workers"`
+	Queue             int   `json:"queue"`
+	MemoryTargetBytes int64 `json:"go_memory_target_bytes"`
+	ElapsedMillis     int64 `json:"elapsed_ms"`
 }
 
 func Workers(profile string) int {
@@ -51,6 +64,17 @@ func Workers(profile string) int {
 	}
 	return n
 }
+
+// SkipReasons is re-exported so callers of Index need not import repository.
+type SkipReasons = repository.SkipReasons
+
+// extractorVersion is stored in metadata 'extractor'. A mismatch means stored
+// rows came from different parsing, chunking or FTS term rules, so content
+// digests alone cannot prove an entry is current and every file is re-extracted.
+const extractorVersion = "parser-" + parser.Version + "/terms-" + termsVersion
+
+// parserAvailable is a seam so plain-text indexing is testable without CGO.
+var parserAvailable = parser.Available
 
 type parsed struct {
 	name, digest, language string
@@ -85,7 +109,7 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 	if err != nil {
 		return report, err
 	}
-	if !parser.Available() {
+	if !parserAvailable() {
 		return report, parser.ErrUnavailable
 	}
 	if err := ctx.Err(); err != nil {
@@ -108,6 +132,7 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 		return report, err
 	}
 	report.Scanned, report.Skipped = len(snapshot.Files), snapshot.Skipped
+	report.SkipReasons = snapshot.SkipReasons
 	notify("processing")
 	db, err := c.open(ctx, true)
 	if err != nil {
@@ -117,23 +142,29 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 	// BEGIN IMMEDIATE serializes independent writers before reading their baseline.
 	conn, err := db.Conn(ctx)
 	if err != nil {
-		return report, ErrState
+		return report, stateError(err)
 	}
 	defer conn.Close()
 	if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
-		return report, ErrState
+		return report, stateError(err)
 	}
 	defer conn.ExecContext(context.Background(), "ROLLBACK")
+	var storedExtractor string
+	if err := conn.QueryRowContext(ctx, "SELECT COALESCE((SELECT substr(value,1,64) FROM metadata WHERE key='extractor'),'')").Scan(&storedExtractor); err != nil {
+		return report, stateError(err)
+	}
+	// Entries from other extraction rules are re-extracted even if bytes are unchanged.
+	refresh := storedExtractor != extractorVersion
 	previous := map[string]string{}
 	rows, err := conn.QueryContext(ctx, "SELECT path,digest FROM files")
 	if err != nil {
-		return report, ErrState
+		return report, stateError(err)
 	}
 	for rows.Next() {
 		var name, digest string
 		if err := rows.Scan(&name, &digest); err != nil {
 			rows.Close()
-			return report, ErrState
+			return report, stateError(err)
 		}
 		if len(previous) >= repository.MaxFiles {
 			rows.Close()
@@ -144,8 +175,9 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 	readErr := rows.Err()
 	rows.Close()
 	if readErr != nil {
-		return report, ErrState
+		return report, stateError(readErr)
 	}
+	report.Refreshed = refresh && len(previous) > 0
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	report.Workers = Workers(cfg.Indexing.Profile)
@@ -179,7 +211,7 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 				data, digest, err := repository.AuthorizedRead(root, name)
 				r.digest, r.err = digest, err
 				if err == nil {
-					if previous[name] == digest {
+					if !refresh && previous[name] == digest {
 						r.unchanged = true
 					} else {
 						r.result, r.err = parser.Parse(ctx, r.language, data)
@@ -204,7 +236,8 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 		}
 	}()
 	go func() { wg.Wait(); close(results) }()
-	seen := map[string]bool{}
+	// seen maps each persisted path to the digest now stored for it.
+	seen := map[string]string{}
 	var runErr error
 	for r := range results {
 		if runErr != nil {
@@ -224,7 +257,12 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 			if errors.Is(r.err, parser.ErrLimit) {
 				report.Limited++
 			}
-			// Unreadable, secret or malformed files lose any previously indexed content.
+			if errors.Is(r.err, parser.ErrLimit) || errors.Is(r.err, parser.ErrMalformed) {
+				report.SkipReasons.ParserLimit++
+			} else {
+				report.SkipReasons.CountReadError(r.err)
+			}
+			// Unreadable, secret or unparseable files lose any previously indexed content.
 			notify("processing")
 			continue
 		}
@@ -232,10 +270,11 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 		_, digest, err := repository.AuthorizedRead(root, r.name)
 		if err != nil || digest != r.digest {
 			report.Skipped++
+			report.SkipReasons.Changed++
 			notify("processing")
 			continue
 		}
-		seen[r.name] = true
+		seen[r.name] = r.digest
 		if r.unchanged {
 			report.Unchanged++
 		} else {
@@ -245,6 +284,14 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 				continue
 			}
 			report.Indexed++
+			switch r.result.Fallback {
+			case parser.FallbackMalformed:
+				report.Malformed++
+				report.PlainText++
+			case parser.FallbackLimit:
+				report.Limited++
+				report.PlainText++
+			}
 		}
 		notify("processing")
 	}
@@ -256,23 +303,14 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 	}
 	notify("finalizing")
 	// A policy may change after an earlier result was written in this transaction.
-	for name := range seen {
+	for name, indexedDigest := range seen {
 		if err := ctx.Err(); err != nil {
 			return report, err
 		}
+		// The stored digest is already known: unchanged rows kept previous[name],
+		// which equalled r.digest, and replaced rows were written with r.digest.
 		_, digest, err := repository.AuthorizedRead(root, name)
-		if err != nil {
-			delete(seen, name)
-			if err := remove(ctx, conn, name); err != nil {
-				return report, err
-			}
-			continue
-		}
-		var indexedDigest string
-		if err := conn.QueryRowContext(ctx, "SELECT digest FROM files WHERE path=?", name).Scan(&indexedDigest); err != nil {
-			return report, ErrState
-		}
-		if digest != indexedDigest {
+		if err != nil || digest != indexedDigest {
 			delete(seen, name)
 			if err := remove(ctx, conn, name); err != nil {
 				return report, err
@@ -280,18 +318,18 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 		}
 	}
 	for name := range previous {
-		if !seen[name] {
+		if _, ok := seen[name]; !ok {
 			if err := remove(ctx, conn, name); err != nil {
 				return report, err
 			}
 			report.Deleted++
 		}
 	}
-	if _, err := conn.ExecContext(ctx, "INSERT OR REPLACE INTO metadata VALUES ('indexed_at', ?)", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
-		return report, ErrState
+	if _, err := conn.ExecContext(ctx, "INSERT OR REPLACE INTO metadata VALUES ('indexed_at', ?), ('extractor', ?)", time.Now().UTC().Format(time.RFC3339Nano), extractorVersion); err != nil {
+		return report, stateError(err)
 	}
 	if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
-		return report, ErrState
+		return report, stateError(err)
 	}
 	// Release the sole base connection before opening a bounded cache reconciler.
 	conn.Close()
@@ -304,10 +342,10 @@ func (c *Core) Index(ctx context.Context, progress func(Progress)) (report Progr
 
 func remove(ctx context.Context, conn *sql.Conn, name string) error {
 	if _, err := conn.ExecContext(ctx, "DELETE FROM fts_chunks WHERE rowid IN (SELECT chunks.id FROM chunks JOIN files ON files.id=chunks.file_id WHERE files.path=?)", name); err != nil {
-		return ErrState
+		return stateError(err)
 	}
 	if _, err := conn.ExecContext(ctx, "DELETE FROM files WHERE path=?", name); err != nil {
-		return ErrState
+		return stateError(err)
 	}
 	return nil
 }
@@ -318,28 +356,28 @@ func replace(ctx context.Context, conn *sql.Conn, r parsed) error {
 	}
 	res, err := conn.ExecContext(ctx, "INSERT INTO files(path,digest,language) VALUES (?,?,?)", r.name, r.digest, r.language)
 	if err != nil {
-		return ErrState
+		return stateError(err)
 	}
 	id, err := res.LastInsertId()
 	if err != nil {
-		return ErrState
+		return stateError(err)
 	}
 	for _, symbol := range r.result.Symbols {
 		if _, err := conn.ExecContext(ctx, "INSERT INTO symbols(file_id,name,kind,start_line,end_line) VALUES (?,?,?,?,?)", id, symbol.Name, symbol.Kind, symbol.StartLine, symbol.EndLine); err != nil {
-			return ErrState
+			return stateError(err)
 		}
 	}
 	for _, chunk := range r.result.Chunks {
 		res, err := conn.ExecContext(ctx, "INSERT INTO chunks(file_id,text,start_line,end_line,digest) VALUES (?,?,?,?,?)", id, chunk.Text, chunk.StartLine, chunk.EndLine, repository.Digest([]byte(chunk.Text)))
 		if err != nil {
-			return ErrState
+			return stateError(err)
 		}
 		chunkID, err := res.LastInsertId()
 		if err != nil {
-			return ErrState
+			return stateError(err)
 		}
-		if _, err := conn.ExecContext(ctx, "INSERT INTO fts_chunks(rowid,text) VALUES (?,?)", chunkID, chunk.Text); err != nil {
-			return ErrState
+		if _, err := conn.ExecContext(ctx, "INSERT INTO fts_chunks(rowid,text) VALUES (?,?)", chunkID, ftsText(chunk.Text)); err != nil {
+			return stateError(err)
 		}
 	}
 	return nil

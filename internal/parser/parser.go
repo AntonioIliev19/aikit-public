@@ -26,6 +26,41 @@ type Chunk struct {
 type Result struct {
 	Symbols []Symbol
 	Chunks  []Chunk
+	// Fallback is FallbackMalformed or FallbackLimit when native parsing failed
+	// and the file was chunked as plain text without symbols instead.
+	Fallback string
+}
+
+const (
+	FallbackMalformed = "malformed"
+	FallbackLimit     = "limit"
+)
+
+// Version identifies the extraction rules (symbol kinds, chunking, fallback).
+// Bump it whenever Parse output for unchanged bytes would differ, so existing
+// index entries are re-extracted instead of being kept as "unchanged".
+const Version = "2"
+
+// nativeParse is a seam so the plain-text fallback is testable without CGO.
+var nativeParse = parseNative
+
+// localScope reports function-like AST node kinds (TypeScript and C#) whose
+// descendants are function-local, so variable declarators below them are not
+// indexed as symbols. Module, namespace and class level declarators are kept,
+// including `const handler = () => {...}`, whose declarator encloses the function.
+func localScope(kind string) bool {
+	switch kind {
+	// TypeScript / TSX
+	case "function_declaration", "generator_function_declaration", "function_expression", "function",
+		"generator_function", "arrow_function", "method_definition", "class_static_block":
+		return true
+	// C#
+	case "method_declaration", "constructor_declaration", "destructor_declaration", "operator_declaration",
+		"conversion_operator_declaration", "accessor_declaration", "local_function_statement",
+		"lambda_expression", "anonymous_method_expression", "global_statement":
+		return true
+	}
+	return false
 }
 
 func SymbolKind(kind string) bool {
@@ -74,7 +109,24 @@ func Parse(ctx context.Context, language string, data []byte) (Result, error) {
 		return Result{}, err
 	}
 	if language != "text" {
-		return parseNative(ctx, language, data)
+		result, err := nativeParse(ctx, language, data)
+		var fallback string
+		switch {
+		case err == nil:
+			return result, nil
+		case errors.Is(err, ErrMalformed):
+			fallback = FallbackMalformed
+		case errors.Is(err, ErrLimit):
+			fallback = FallbackLimit
+		default:
+			return Result{}, err
+		}
+		// Keep files with syntax errors or oversized ASTs searchable as plain text.
+		chunks, textErr := textChunks(data, 1)
+		if textErr != nil {
+			return Result{}, textErr
+		}
+		return Result{Chunks: chunks, Fallback: fallback}, nil
 	}
 	chunks, err := textChunks(data, 1)
 	return Result{Chunks: chunks}, err

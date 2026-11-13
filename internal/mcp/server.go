@@ -126,6 +126,29 @@ func errorCode(err error) string {
 	}
 }
 
+// fit drops trailing evidence (lexical or hybrid) until the encoded response
+// fits MaxOutputBytes, marking it Truncated. Anything that still does not fit
+// becomes OUTPUT_LIMIT in result.
+func fit(v response) response {
+	for {
+		data, _ := json.Marshal(v)
+		if len(data) <= MaxOutputBytes {
+			return v
+		}
+		switch {
+		case v.Hybrid != nil && len(v.Hybrid.Evidence) > 0:
+			hybrid := *v.Hybrid
+			hybrid.Evidence = hybrid.Evidence[:len(hybrid.Evidence)-1]
+			v.Hybrid = &hybrid
+		case len(v.Evidence) > 0:
+			v.Evidence = v.Evidence[:len(v.Evidence)-1]
+		default:
+			return v
+		}
+		v.Truncated = true
+	}
+}
+
 func result(v response) *sdk.CallToolResult {
 	data, _ := json.Marshal(v)
 	if len(data) > MaxOutputBytes {
@@ -190,7 +213,7 @@ func New(project, version string) (*sdk.Server, error) {
 					if err != nil {
 						return result(response{Error: errorCode(err)}), nil
 					}
-					return result(response{Hybrid: &v, Freshness: "authorized_returned_source_digests_checked_bounded_candidates"}), nil
+					return result(fit(response{Hybrid: &v, Freshness: "authorized_returned_source_digests_checked_bounded_candidates"})), nil
 				}
 				evidence, err = core.Search(ctx, query)
 			} else if name == "conmesh_find_reference_candidates" {
@@ -201,16 +224,7 @@ func New(project, version string) (*sdk.Server, error) {
 			if err != nil {
 				return result(response{Error: errorCode(err)}), nil
 			}
-			v := response{Evidence: evidence, Freshness: "returned_source_digests_checked_not_repository_scan"}
-			for {
-				data, _ := json.Marshal(v)
-				if len(data) <= MaxOutputBytes {
-					break
-				}
-				v.Truncated = true
-				v.Evidence = v.Evidence[:len(v.Evidence)-1]
-			}
-			return result(v), nil
+			return result(fit(response{Evidence: evidence, Freshness: "returned_source_digests_checked_not_repository_scan"})), nil
 		})
 	}
 	return server, nil

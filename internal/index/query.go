@@ -94,7 +94,7 @@ func (c *Core) query(ctx context.Context, q Query, symbol bool) ([]Evidence, err
 	}
 	rows, err := db.QueryContext(ctx, sqlText, term, q.Scope, q.Scope, q.Scope, q.Scope, q.Limit)
 	if err != nil {
-		return nil, ErrState
+		return nil, stateError(err)
 	}
 	defer rows.Close()
 	result := []Evidence{}
@@ -105,7 +105,7 @@ func (c *Core) query(ctx context.Context, q Query, symbol bool) ([]Evidence, err
 		var e Evidence
 		var digest string
 		if err := rows.Scan(&e.Path, &digest, &e.StartLine, &e.EndLine, &e.Name, &e.Kind); err != nil {
-			return nil, ErrState
+			return nil, stateError(err)
 		}
 		if len(e.Path) > 4096 || len(digest) != 64 || (symbol && !parser.SymbolKind(e.Kind)) {
 			return nil, ErrState
@@ -134,7 +134,7 @@ func (c *Core) query(ctx context.Context, q Query, symbol bool) ([]Evidence, err
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return nil, ErrState
+		return nil, stateError(err)
 	}
 	return result, nil
 }
@@ -170,7 +170,7 @@ func (c *Core) Status(ctx context.Context) (Status, error) {
 	defer db.Close()
 	status.Present = true
 	if err := db.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM files),(SELECT count(*) FROM chunks),(SELECT count(*) FROM symbols),COALESCE((SELECT substr(value,1,36) FROM metadata WHERE key='indexed_at'),'')").Scan(&status.Files, &status.Chunks, &status.Symbols, &status.IndexedAt); err != nil {
-		return Status{}, ErrState
+		return Status{}, stateError(err)
 	}
 	if len(status.IndexedAt) > 35 {
 		return Status{}, ErrState

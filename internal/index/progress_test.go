@@ -17,8 +17,9 @@ func TestProgressAllOutcomes(t *testing.T) {
 	}{
 		{"empty", nil, 0, 0, 0},
 		{"scan-skipped", map[string]string{".env": "fixture"}, 0, 0, 0},
-		{"all-skipped", map[string]string{"bad.ts": "export function Broken( {", "binary.txt": "\x00"}, 2, 0, 1},
-		{"mixed", map[string]string{"good.ts": "export const Good = 1;", "bad.ts": "export function Broken( {", "binary.txt": "\x00"}, 3, 1, 1},
+		// Malformed sources are indexed as plain text, so they count as indexed.
+		{"malformed-and-binary", map[string]string{"bad.ts": "export function Broken( {", "binary.txt": "\x00"}, 2, 1, 1},
+		{"mixed", map[string]string{"good.ts": "export const Good = 1;", "bad.ts": "export function Broken( {", "binary.txt": "\x00"}, 3, 2, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, dir := fixture(t, true, tc.files)
@@ -39,7 +40,12 @@ func TestProgressAllOutcomes(t *testing.T) {
 					}
 					processed = e.Processed
 				}
-				if p.Processed != tc.processed || p.Malformed != tc.malformed || p.Processed != p.Scanned {
+				// Malformed files are parsed (and counted) only when their bytes change.
+				malformed := tc.malformed
+				if run == 1 {
+					malformed = 0
+				}
+				if p.Processed != tc.processed || p.Malformed != malformed || p.Processed != p.Scanned || p.SkipReasons.Total() != p.Skipped {
 					t.Fatal("missing skipped completion", p)
 				}
 				if run == 0 && p.Indexed != tc.indexed || run == 1 && p.Unchanged != tc.indexed {

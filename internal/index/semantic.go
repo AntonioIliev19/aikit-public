@@ -129,7 +129,7 @@ func (c *Core) semanticChunks(ctx context.Context, scope string) ([]semanticChun
 	defer db.Close()
 	rows, err := db.QueryContext(ctx, `SELECT substr(files.path,1,4097),substr(files.digest,1,65),chunks.start_line,chunks.end_line,substr(chunks.digest,1,65),substr(chunks.text,1,16385) FROM chunks JOIN files ON files.id=chunks.file_id WHERE (?='' OR files.path=? OR substr(files.path,1,length(?)+1)=?||'/') ORDER BY files.path,chunks.start_line,chunks.end_line,chunks.id LIMIT ?`, scope, scope, scope, scope, MaxSemanticCandidates+1)
 	if err != nil {
-		return nil, false, ErrState
+		return nil, false, stateError(err)
 	}
 	defer rows.Close()
 	root, err := security.OpenRoot(c.project)
@@ -137,6 +137,15 @@ func (c *Core) semanticChunks(ctx context.Context, scope string) ([]semanticChun
 		return nil, false, security.ErrDenied
 	}
 	defer root.Close()
+	// Rows are ordered by path, so each file is authorized and read once per
+	// call rather than once per chunk. Callers still re-check returned evidence
+	// (checkEvidence) or each batch (IndexSemantic) after runtime work.
+	type source struct {
+		lines  []string
+		digest string
+	}
+	var current *source
+	currentPath := ""
 	out := []semanticChunk{}
 	for rows.Next() {
 		if ctx.Err() != nil {
@@ -153,14 +162,17 @@ func (c *Core) semanticChunks(ctx context.Context, scope string) ([]semanticChun
 		if len(v.Path) > 4096 || len(fileDigest) != 64 || len(v.digest) != 64 || len(v.text) > parser.MaxChunkBytes || v.digest != repository.Digest([]byte(v.text)) {
 			return nil, false, ErrState
 		}
-		data, current, err := repository.AuthorizedRead(root, v.Path)
-		if err != nil {
-			return nil, false, err
+		if current == nil || currentPath != v.Path {
+			data, digest, err := repository.AuthorizedRead(root, v.Path)
+			if err != nil {
+				return nil, false, err
+			}
+			current, currentPath = &source{lines: strings.Split(string(data), "\n"), digest: digest}, v.Path
 		}
-		if current != fileDigest {
+		if current.digest != fileDigest {
 			return nil, false, repository.ErrStale
 		}
-		lines := strings.Split(string(data), "\n")
+		lines := current.lines
 		if v.StartLine < 1 || v.EndLine < v.StartLine || v.EndLine > len(lines) {
 			return nil, false, ErrState
 		}
@@ -205,13 +217,62 @@ func decodeVector(b []byte) ([]float32, error) {
 	}
 	return v, nil
 }
-func cached(ctx context.Context, db *sql.DB, model, digest string) ([]float32, error) {
-	var b []byte
-	err := db.QueryRowContext(ctx, "SELECT substr(vector,1,3073) FROM vectors WHERE model=? AND digest=?", model, digest).Scan(&b)
-	if err != nil {
-		return nil, err
+
+// vectorBatch bounds bound parameters per query (well below SQLite's limit).
+const vectorBatch = 256
+
+// cachedVectors loads the cached vectors for the given chunk digests with one
+// query per vectorBatch digests instead of one per chunk. Missing digests are
+// simply absent from the map; a malformed stored vector is an ErrState error.
+func cachedVectors(ctx context.Context, db *sql.DB, model string, digests []string) (map[string][]float32, error) {
+	out := make(map[string][]float32, len(digests))
+	wanted := make(map[string]bool, len(digests))
+	unique := make([]string, 0, len(digests))
+	for _, d := range digests {
+		if !wanted[d] {
+			wanted[d] = true
+			unique = append(unique, d)
+		}
 	}
-	return decodeVector(b)
+	for start := 0; start < len(unique); start += vectorBatch {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		batch := unique[start:min(start+vectorBatch, len(unique))]
+		args := make([]any, 0, len(batch)+1)
+		args = append(args, model)
+		for _, d := range batch {
+			args = append(args, d)
+		}
+		rows, err := db.QueryContext(ctx, "SELECT substr(digest,1,65),substr(vector,1,3073) FROM vectors WHERE model=? AND digest IN (?"+strings.Repeat(",?", len(batch)-1)+")", args...)
+		if err != nil {
+			return nil, stateError(err)
+		}
+		for rows.Next() {
+			var digest string
+			var b []byte
+			if err := rows.Scan(&digest, &b); err != nil {
+				rows.Close()
+				return nil, stateError(err)
+			}
+			if !wanted[digest] {
+				rows.Close()
+				return nil, ErrState
+			}
+			v, err := decodeVector(b)
+			if err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[digest] = v
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, stateError(err)
+		}
+	}
+	return out, nil
 }
 
 // IndexSemantic is a separately selected write operation after lexical indexing.
@@ -246,6 +307,17 @@ func (c *Core) IndexSemantic(ctx context.Context, scope string) (SemanticProgres
 	if db.QueryRowContext(ctx, "SELECT count(*) FROM vectors").Scan(&count) != nil {
 		return report, ErrState
 	}
+	digests := make([]string, len(chunks))
+	for i, chunk := range chunks {
+		digests[i] = chunk.digest
+	}
+	existing, err := cachedVectors(ctx, db, model, digests)
+	if err != nil {
+		if ctx.Err() != nil {
+			return report, ctx.Err()
+		}
+		return report, err
+	}
 	pending := []semanticChunk{}
 	seen := map[string]bool{}
 	for _, chunk := range chunks {
@@ -253,13 +325,9 @@ func (c *Core) IndexSemantic(ctx context.Context, scope string) (SemanticProgres
 			continue
 		}
 		seen[chunk.digest] = true
-		_, err := cached(ctx, db, model, chunk.digest)
-		if err == nil {
+		if _, ok := existing[chunk.digest]; ok {
 			report.Reused++
 			continue
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
-			return report, ErrState
 		}
 		pending = append(pending, chunk)
 	}
@@ -361,14 +429,22 @@ func (c *Core) Hybrid(ctx context.Context, q Query) (HybridResult, error) {
 		score float64
 	}
 	semantic := []scored{}
+	digests := make([]string, len(chunks))
+	for i, chunk := range chunks {
+		digests[i] = chunk.digest
+	}
+	stored, err := cachedVectors(ctx, db, model, digests)
+	if err != nil {
+		if ctx.Err() != nil {
+			return result, ctx.Err()
+		}
+		return result, err
+	}
 	vectors := make([][]float32, len(chunks))
 	for i, chunk := range chunks {
-		v, err := cached(ctx, db, model, chunk.digest)
-		if errors.Is(err, sql.ErrNoRows) {
+		v, ok := stored[chunk.digest]
+		if !ok {
 			return result, embeddings.ErrUnavailable
-		}
-		if err != nil {
-			return result, ErrState
 		}
 		vectors[i] = v
 	}
