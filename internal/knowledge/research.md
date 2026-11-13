@@ -14,13 +14,13 @@ harness data policies. Local indexing does not make harness inference offline.
 1. Run from the project root. Call `aikit_index_status` and require both
    `status.enabled` and `status.present` to be true. If the MCP tool is missing,
    stop and ask the user to connect the project's AIKIT stdio MCP server
-   (`aikit mcp serve --project <absolute project root>`) in the current host.
-   Codex and Claude Code can configure it with `aikit sync --trust`. If the index is
+   (`conmesh mcp serve --project <absolute project root>`) in the current host.
+   Codex and Claude Code can configure it with `conmesh sync --trust`. If the index is
    disabled or absent, stop and ask the user to enable indexing and run
-   `aikit index`. Report other index errors as blockers. Do not switch to a
+   `conmesh index`. Report other index errors as blockers. Do not switch to a
    direct repository scan.
-2. Run `aikit knowledge list` to check the manifest. If it reports
-   `KNOWLEDGE_ABSENT`, run `aikit knowledge scaffold` yourself and check again.
+2. Run `conmesh knowledge list` to check the manifest. If it reports
+   `KNOWLEDGE_ABSENT`, run `conmesh knowledge scaffold` yourself and check again.
    Scaffolding creates an empty manifest. If the check still fails, report the
    error and preserve the existing files. In particular, never move, replace, or
    reset a malformed manifest. A successful unfiltered list can return `[]`
@@ -50,7 +50,7 @@ harness data policies. Local indexing does not make harness inference offline.
    and documents intact. If a suitable document is already present but
    unregistered, validate its evidence before registering it as a proposal.
    Give new entries unique IDs and file paths.
-7. Run `aikit knowledge show <id>` for every new entry to validate its document
+7. Run `conmesh knowledge show <id>` for every new entry to validate its document
    and live citations. Resolve any errors in your proposed changes before
    reporting success. Present the validated IDs, evidence, and review digests.
    If no proposal can be supported, report the missing evidence instead of
@@ -122,7 +122,7 @@ export function main() {}
   entries.
 
 Only an explicit user-reviewed invocation of
-`aikit knowledge approve <id> --reviewed-digest <digest>` can approve current
+`conmesh knowledge approve <id> --reviewed-digest <digest>` can approve current
 content. Do not execute approval autonomously, infer it from research permission,
 or edit approval receipts. Changed entry/document/citation digests require review
 again. Approval applies to the current user and canonical project root.

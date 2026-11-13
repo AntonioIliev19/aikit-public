@@ -1,7 +1,7 @@
 #requires -Version 5.1
 <# Offline per-user installer. Run only with a binary whose source you trust. #>
 [CmdletBinding()]
-param([string]$BinaryPath = (Join-Path $PSScriptRoot 'aikit.exe'))
+param([string]$BinaryPath = (Join-Path $PSScriptRoot 'conmesh.exe'))
 
 function Get-AikitLocalAppData {
     [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
@@ -15,7 +15,7 @@ function Test-AikitMachineConflict([string]$Directory) {
         $expanded = [Environment]::ExpandEnvironmentVariables($entry.Trim().Trim('"')).TrimEnd('\', '/')
         if ([string]::Equals($expanded, $Directory, [StringComparison]::OrdinalIgnoreCase)) { continue }
         foreach ($extension in @('.exe', '.com', '.cmd', '.bat', '.ps1')) {
-            if ([IO.File]::Exists((Join-Path $expanded ('aikit' + $extension)))) { return $true }
+            if ([IO.File]::Exists((Join-Path $expanded ('conmesh' + $extension)))) { return $true }
         }
     }
     return $false
@@ -70,8 +70,8 @@ function Assert-AikitPlainPath([string]$Path) {
 
 function Test-AikitBinary([string]$Path) {
     $version = & $Path --version 2>&1
-    if ($LASTEXITCODE -ne 0 -or ($version -join "`n") -notmatch '^aikit [^\r\n]+$') {
-        throw 'The supplied executable did not pass aikit --version. Use a trusted native Windows AIKIT build.'
+    if ($LASTEXITCODE -ne 0 -or ($version -join "`n") -notmatch '^conmesh [^\r\n]+$') {
+        throw 'The supplied executable did not pass conmesh --version. Use a trusted native Windows ConMesh build.'
     }
 }
 
@@ -101,12 +101,12 @@ function Install-Aikit([string]$Source) {
     $sourcePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Source)
     Assert-AikitPlainPath $sourcePath
     if (-not [IO.File]::Exists($sourcePath) -or [IO.Path]::GetExtension($sourcePath) -ne '.exe') {
-        throw 'Supply a trusted local Windows aikit.exe with -BinaryPath.'
+        throw 'Supply a trusted local Windows conmesh.exe with -BinaryPath.'
     }
     $local = Get-AikitLocalAppData
     if ([string]::IsNullOrWhiteSpace($local) -or -not [IO.Path]::IsPathRooted($local)) { throw 'Windows LocalApplicationData is unavailable.' }
-    $directory = Join-Path $local 'AIKIT\bin'
-    $target = Join-Path $directory 'aikit.exe'
+    $directory = Join-Path $local 'ConMesh\bin'
+    $target = Join-Path $directory 'conmesh.exe'
     Assert-AikitPlainPath $target
     $oldPath = Get-AikitUserPath
     $newPath = Add-AikitPath $oldPath.Value $directory
@@ -114,7 +114,7 @@ function Install-Aikit([string]$Source) {
     if ($newPath.Length -ge 32767 -or $processPath.Length -ge 32767) { throw 'PATH would exceed the Windows environment limit.' }
     Test-AikitBinary $sourcePath
     [void][IO.Directory]::CreateDirectory($directory)
-    $stage = Join-Path $directory ('aikit-install-' + [Guid]::NewGuid().ToString('N') + '.exe')
+    $stage = Join-Path $directory ('conmesh-install-' + [Guid]::NewGuid().ToString('N') + '.exe')
     $backup = $stage + '.previous'
     $promoted = $false
     $hadTarget = [IO.File]::Exists($target)
@@ -140,17 +140,17 @@ function Install-Aikit([string]$Source) {
     if ([IO.File]::Exists($backup)) { [IO.File]::Delete($backup) }
     $env:Path = $processPath
     Send-AikitEnvironmentChange
-    Write-Host "Installed AIKIT: $target"
-    $resolved = Get-Command aikit -ErrorAction SilentlyContinue
+    Write-Host "Installed ConMesh: $target"
+    $resolved = Get-Command conmesh -ErrorAction SilentlyContinue
     if ($null -ne $resolved -and $resolved.CommandType -eq 'Application' -and
         [string]::Equals($resolved.Source, $target, [StringComparison]::OrdinalIgnoreCase)) {
         Test-AikitBinary $target
-        Write-Host 'User PATH saved. aikit is ready in this PowerShell session.'
+        Write-Host 'User PATH saved. conmesh is ready in this PowerShell session.'
     } else {
-        Write-Warning 'User PATH saved, but another command shadows aikit in this session. Use the installed full path or remove that alias/function.'
+        Write-Warning 'User PATH saved, but another command shadows conmesh in this session. Use the installed full path or remove that alias/function.'
     }
     if (Test-AikitMachineConflict $directory) {
-        Write-Warning 'Another aikit exists on the machine PATH and can take precedence in new terminals. Use the installed full path until that older installation is removed.'
+        Write-Warning 'Another conmesh exists on the machine PATH and can take precedence in new terminals. Use the installed full path until that older installation is removed.'
     }
     Write-Host 'For other existing terminals, restart the terminal application (including Windows Terminal or your editor).'
     Write-Host 'If a restarted application still has an old PATH, sign out and back in.'

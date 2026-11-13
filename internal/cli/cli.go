@@ -1,4 +1,4 @@
-// Package cli implements AIKIT's native command surface.
+// Package cli implements ConMesh's native command surface.
 package cli
 
 import (
@@ -21,12 +21,18 @@ import (
 	"github.com/AntonioIliev19/aikit-public/internal/update"
 )
 
-const help = `AIKIT - local-first development toolkit
+const help = `ConMesh - local-first development toolkit
 
-Usage: aikit <command> [options]
+Usage: conmesh [options]
+       conmesh <command> [command options]
 
-  --help, -h, help                   Show help
+Options:
+  -h, --help                        Show the command reference
   --version                         Show build version
+
+Commands:
+  menu                              Open the interactive terminal menu
+  help                              Show the command reference
   doctor                            Show runtime and implementation status
   update --version vX.Y.Z [--check] Verify signed native release; apply unless checking
   update --rollback                Restore retained previous executable
@@ -58,6 +64,23 @@ overrides shadow project packages, then global ones.
 // Run executes one command. Exit codes: 0 success, 1 operational/output failure,
 // 2 invalid usage. Untrusted arguments are never echoed in diagnostics.
 func Run(args []string, stdout, stderr io.Writer, version string) int {
+	if len(args) == 0 || len(args) == 1 && args[0] == "menu" {
+		out := terminalFor(stdout)
+		if file, ok := stdout.(*os.File); out.live && ok && isTerminal(os.Stdin) && enableColor(file) {
+			err := runMenu(os.Stdin, stdout, out, version, func(args []string) {
+				Run(args, stdout, stderr, version)
+			}, loadMenuUpdates(), os.Getenv("AIKIT_AUTO_UPDATE_CHECK") == "1", terminalMenuMode(os.Stdin))
+			if err != nil {
+				fmt.Fprintln(stderr, "conmesh:", err)
+				return 1
+			}
+			return 0
+		}
+		if len(args) == 1 {
+			fmt.Fprintln(stderr, "conmesh: menu requires an interactive terminal; use --help for commands")
+			return 2
+		}
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	return runContext(ctx, args, stdout, stderr, version, "", "")
@@ -72,7 +95,7 @@ func run(args []string, stdout, stderr io.Writer, version, cwd, global string) i
 func runContext(ctx context.Context, args []string, stdout, stderr io.Writer, version, cwd, global string) int {
 	if len(args) > 0 && args[0] == "mcp" {
 		if err := serveMCP(ctx, args[1:], version, cwd, os.Stdin, stdout); err != nil {
-			fmt.Fprintln(stderr, "aikit:", err)
+			fmt.Fprintln(stderr, "conmesh:", err)
 			if errors.Is(err, errUsage) {
 				return 2
 			}
@@ -96,14 +119,14 @@ func runTerminal(ctx context.Context, args []string, stdout, stderr io.Writer, v
 		err = errors.New("could not write progress")
 	}
 	if err != nil {
-		fmt.Fprintln(stderr, errTerminal.paint("31", "aikit: "+err.Error()))
+		fmt.Fprintln(stderr, errTerminal.paint("31", "conmesh: "+err.Error()))
 		if errors.Is(err, errUsage) {
 			return 2
 		}
 		return 1
 	}
 	if _, err := io.WriteString(stdout, outTerminal.output(output)); err != nil {
-		fmt.Fprintln(stderr, errTerminal.paint("31", "aikit: could not write output"))
+		fmt.Fprintln(stderr, errTerminal.paint("31", "conmesh: could not write output"))
 		return 1
 	}
 	return 0
@@ -127,7 +150,7 @@ func executeProgress(ctx context.Context, args []string, version, cwd, global st
 		if len(args) != 1 {
 			return "", errUsage
 		}
-		return fmt.Sprintf("aikit %s\n", version), nil
+		return fmt.Sprintf("conmesh %s\n", version), nil
 	case "research-skill":
 		if len(args) != 1 {
 			return "", errUsage

@@ -21,7 +21,7 @@ try {
     $fixture = Join-Path $scratch 'trusted native fixture.exe'
     Add-Type -TypeDefinition @'
 public static class InstallerFixture {
-    public static void Main(string[] args) { System.Console.WriteLine("aikit installer-test"); }
+    public static void Main(string[] args) { System.Console.WriteLine("conmesh installer-test"); }
 }
 '@ -OutputAssembly $fixture -OutputType ConsoleApplication
 
@@ -39,16 +39,16 @@ public static class InstallerFixture {
     }
     function Send-AikitEnvironmentChange { }
 
-    $bin = Join-Path $script:testLocal 'AIKIT\bin'
-    $target = Join-Path $bin 'aikit.exe'
+    $bin = Join-Path $script:testLocal 'ConMesh\bin'
+    $target = Join-Path $bin 'conmesh.exe'
     $env:Path = 'C:\process-only;' + $originalPath
     Install-Aikit $fixture
     Assert ([IO.File]::Exists($target)) 'Binary was not installed into the known folder.'
     Assert ($script:storedPath.Value -ceq ($bin + ';%USERPROFILE%\my tools;;C:\existing')) 'User PATH entries were expanded, removed or reordered.'
     Assert ($script:storedPath.Kind -eq [Microsoft.Win32.RegistryValueKind]::ExpandString) 'Registry value kind changed.'
     Assert ($env:Path.StartsWith($bin + ';C:\process-only;')) 'Current PowerShell PATH was not updated.'
-    Assert ((Get-Command aikit -CommandType Application).Source -eq $target) 'Installed command cannot be discovered.'
-    Assert ((& aikit --version) -eq 'aikit installer-test') 'Installed command cannot run by name.'
+    Assert ((Get-Command conmesh -CommandType Application).Source -eq $target) 'Installed command cannot be discovered.'
+    Assert ((& conmesh --version) -eq 'conmesh installer-test') 'Installed command cannot run by name.'
 
     $saved = $script:storedPath.Value
     Install-Aikit $fixture
@@ -62,16 +62,16 @@ public static class InstallerFixture {
     $duplicated = '"' + $bin.ToUpperInvariant() + '\";C:\keep;' + $bin
     Assert ((Add-AikitPath $duplicated $bin) -eq ($bin + ';C:\keep')) 'Quoted/case/trailing-slash duplicates were not removed.'
     $env:AIKIT_INSTALL_TEST_LOCAL = $script:testLocal
-    Assert ((Add-AikitPath '%AIKIT_INSTALL_TEST_LOCAL%\AIKIT\bin;C:\keep' $bin) -eq ($bin + ';C:\keep')) 'Expandable duplicate was not removed.'
+    Assert ((Add-AikitPath '%AIKIT_INSTALL_TEST_LOCAL%\ConMesh\bin;C:\keep' $bin) -eq ($bin + ';C:\keep')) 'Expandable duplicate was not removed.'
     Assert ((Add-AikitPath '' $bin) -eq $bin) 'Empty PATH was not handled.'
     Assert ((Add-AikitPath $bin $bin) -eq $bin) 'Singleton PATH gained an empty entry.'
-    Set-Alias -Name aikit -Value Write-Output
+    Set-Alias -Name conmesh -Value Write-Output
     try {
         $warnings = @(& { Install-Aikit $target } 3>&1 | Where-Object { $_ -is [Management.Automation.WarningRecord] })
-        Assert (@($warnings | Where-Object { $_.Message -like '*shadows aikit*' }).Count -eq 1) 'Alias conflict was not reported.'
-    } finally { Remove-Item Alias:\aikit }
+        Assert (@($warnings | Where-Object { $_.Message -like '*shadows conmesh*' }).Count -eq 1) 'Alias conflict was not reported.'
+    } finally { Remove-Item Alias:\conmesh }
     function Get-AikitMachinePath { $scratch }
-    [IO.File]::Copy($fixture, (Join-Path $scratch 'aikit.exe'))
+    [IO.File]::Copy($fixture, (Join-Path $scratch 'conmesh.exe'))
     Assert (Test-AikitMachineConflict $bin) 'Conflicting machine PATH executable was not detected.'
     function Get-AikitMachinePath { '' }
 
@@ -95,7 +95,7 @@ public static class InstallerFixture {
     $script:failWrite = $false
     Assert ((Get-FileHash -LiteralPath $target).Hash -eq $before) 'Registry failure lost the old binary.'
     Assert ($env:Path -ceq $processBefore) 'Failure changed the calling process PATH.'
-    Assert (@(Get-ChildItem -LiteralPath $bin -Filter 'aikit-install-*').Count -eq 0) 'Staging files remain after rollback.'
+    Assert (@(Get-ChildItem -LiteralPath $bin -Filter 'conmesh-install-*').Count -eq 0) 'Staging files remain after rollback.'
 
     $lock = [IO.File]::Open($target, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
     try { Assert-Throws { Install-Aikit $fixture } 'Locked executable replacement was accepted.' }
@@ -105,7 +105,7 @@ public static class InstallerFixture {
 
     $link = Join-Path $scratch 'junction'
     [void](New-Item -ItemType Junction -Path $link -Target $script:testLocal)
-    Assert-Throws { Assert-AikitPlainPath (Join-Path $link 'AIKIT\bin\aikit.exe') } 'Junction in installation path was accepted.'
+    Assert-Throws { Assert-AikitPlainPath (Join-Path $link 'ConMesh\bin\conmesh.exe') } 'Junction in installation path was accepted.'
     # Remove only the verified test junction itself, never recurse through it.
     [IO.Directory]::Delete($link)
     Write-Host 'PASS: Windows installer regression checks (Windows PowerShell 5.1).'

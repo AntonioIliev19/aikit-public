@@ -13,7 +13,7 @@ import (
 
 func TestWindowsInstallerIncludedWithoutOverwrite(t *testing.T) {
 	out := t.TempDir()
-	if err := windowsInstaller(out, filepath.Join("..", ".."), "aikit_v0.0.0_windows_amd64.exe"); err != nil {
+	if err := windowsInstaller(out, filepath.Join("..", ".."), "conmesh_v0.0.0_windows_amd64.exe"); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"install.ps1", "install.cmd"} {
@@ -22,7 +22,7 @@ func TestWindowsInstallerIncludedWithoutOverwrite(t *testing.T) {
 			t.Fatal(err)
 		}
 		if name == "install.cmd" {
-			want = bytes.ReplaceAll(want, []byte("%~dp0aikit.exe"), []byte("%~dp0aikit_v0.0.0_windows_amd64.exe"))
+			want = bytes.ReplaceAll(want, []byte("%~dp0conmesh.exe"), []byte("%~dp0conmesh_v0.0.0_windows_amd64.exe"))
 		}
 		got, err := os.ReadFile(filepath.Join(out, name))
 		if err != nil || !bytes.Equal(got, want) {
@@ -30,13 +30,13 @@ func TestWindowsInstallerIncludedWithoutOverwrite(t *testing.T) {
 		}
 	}
 	guide, err := os.ReadFile(filepath.Join(out, "INSTALL.txt"))
-	if err != nil || !strings.Contains(string(guide), "install.cmd aikit_v0.0.0_windows_amd64.exe") {
+	if err != nil || !strings.Contains(string(guide), "install.cmd conmesh_v0.0.0_windows_amd64.exe") {
 		t.Fatal("installer guide does not identify the native artifact")
 	}
 	if err := windowsInstaller(out, filepath.Join("..", ".."), "another.exe"); err == nil {
 		t.Fatal("existing installer overwritten")
 	}
-	if err := windowsInstaller(t.TempDir(), t.TempDir(), "aikit.exe"); err == nil {
+	if err := windowsInstaller(t.TempDir(), t.TempDir(), "conmesh.exe"); err == nil {
 		t.Fatal("missing installer sources accepted")
 	}
 }

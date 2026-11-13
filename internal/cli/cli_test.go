@@ -21,7 +21,7 @@ func TestRun(t *testing.T) {
 		{"help flag", []string{"--help"}, help, 0},
 		{"short help", []string{"-h"}, help, 0},
 		{"help command", []string{"help"}, help, 0},
-		{"version", []string{"--version"}, "aikit test-version\n", 0},
+		{"version", []string{"--version"}, "conmesh test-version\n", 0},
 		{"doctor", []string{"doctor"}, doctor("test-version"), 0},
 		{"unknown", []string{"sensitive-input"}, "", 2},
 		{"extra", []string{"doctor", "sensitive-input"}, "", 2},

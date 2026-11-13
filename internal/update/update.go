@@ -45,6 +45,7 @@ type Manifest struct {
 type Client struct {
 	key           ed25519.PublicKey
 	base          string
+	latestURL     string
 	http          *http.Client
 	beforePromote func() // deterministic failure/race injection in package tests only
 }
@@ -54,7 +55,7 @@ func New() (*Client, error) {
 	if err != nil || len(key) != ed25519.PublicKeySize {
 		return nil, ErrTrust
 	}
-	return &Client{key: key, base: "https://github.com/" + Repository + "/releases/download/", http: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	return &Client{key: key, base: "https://github.com/" + Repository + "/releases/download/", latestURL: "https://api.github.com/repos/" + Repository + "/releases/latest", http: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		// GitHub release assets redirect to its fixed asset host; never follow HTTP.
 		if len(via) > 3 || req.URL.Scheme != "https" || req.URL.User != nil || (req.URL.Hostname() != "release-assets.githubusercontent.com" && req.URL.Hostname() != "github.com") {
 			return ErrTrust
@@ -86,7 +87,7 @@ func Artifact(version, goos, arch string) string {
 	if goos == "windows" {
 		ext = ".exe"
 	}
-	return "aikit_" + version + "_" + goos + "_" + arch + ext
+	return "conmesh_" + version + "_" + goos + "_" + arch + ext
 }
 func (c *Client) Check(ctx context.Context, version string) (Manifest, error) {
 	var m Manifest

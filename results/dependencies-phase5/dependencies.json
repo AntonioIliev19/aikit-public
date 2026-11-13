@@ -321,8 +321,16 @@
   },
   {
     "Path": "golang.org/x/sys",
-    "Version": "v0.49.0",
-    "Sum": "h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=",
+    "Version": "v0.50.0",
+    "Sum": "h1:dkKZEFTEKaLr1sjhs0WiKqoi8Jj5nHbS3Njmx1UoMJs=",
+    "Dir": "",
+    "Main": false,
+    "Replace": null
+  },
+  {
+    "Path": "golang.org/x/term",
+    "Version": "v0.48.0",
+    "Sum": "h1:G6UU1eiSB8nl3DzeUGt7Mg+2SctI8tPS6Z5/mBt6cOk=",
     "Dir": "",
     "Main": false,
     "Replace": null

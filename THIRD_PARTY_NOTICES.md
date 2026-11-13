@@ -1,6 +1,6 @@
 # Third-party notices
 
-AIKIT is licensed under [Apache-2.0](LICENSE). Third-party components retain their upstream licenses and notices.
+ConMesh is licensed under [Apache-2.0](LICENSE). Third-party components retain their upstream licenses and notices.
 
 The pinned Go module graph and complete collected license texts are available in:
 

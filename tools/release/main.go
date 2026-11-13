@@ -59,7 +59,7 @@ func windowsInstaller(out, source, artifact string) error {
 			return fmt.Errorf("Windows installer source unavailable: %s", name)
 		}
 		if name == "install.cmd" {
-			data = bytes.ReplaceAll(data, []byte("%~dp0aikit.exe"), []byte("%~dp0"+artifact))
+			data = bytes.ReplaceAll(data, []byte("%~dp0conmesh.exe"), []byte("%~dp0"+artifact))
 		}
 		if err = put(out, name, data); err != nil {
 			return err
@@ -174,7 +174,7 @@ func inventory(out string) error {
 		}
 	}
 	var notices strings.Builder
-	notices.WriteString("# Third-party license texts\n\nGenerated from the exact downloaded module graph; includes nested native licenses.\nThis file does not license AIKIT itself. Review before redistribution.\n")
+	notices.WriteString("# Third-party license texts\n\nGenerated from the exact downloaded module graph; includes nested native licenses.\nThis file does not license ConMesh itself. Review before redistribution.\n")
 	components := []map[string]any{}
 	for _, m := range modules {
 		if m.Dir == "" {
@@ -222,7 +222,7 @@ func inventory(out string) error {
 		rel, _ := filepath.Rel(goRoot, file)
 		fmt.Fprintf(&notices, "\n## Go toolchain %s — %s\n\n```text\n%s\n```\n", runtime.Version(), filepath.ToSlash(rel), data)
 	}
-	sbom := map[string]any{"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "metadata": map[string]any{"component": map[string]string{"type": "application", "name": "AIKIT"}, "properties": []map[string]string{{"name": "aikit:scope", "value": "Complete Go module graph (includes build/test-only modules); native license texts accompany inventory; Go toolchain separately identified"}, {"name": "aikit:go-version", "value": runtime.Version()}}}, "components": components}
+	sbom := map[string]any{"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "metadata": map[string]any{"component": map[string]string{"type": "application", "name": "ConMesh"}, "properties": []map[string]string{{"name": "aikit:scope", "value": "Complete Go module graph (includes build/test-only modules); native license texts accompany inventory; Go toolchain separately identified"}, {"name": "aikit:go-version", "value": runtime.Version()}}}, "components": components}
 	data, _ := json.MarshalIndent(sbom, "", "  ")
 	if err = put(out, "sbom.cdx.json", append(data, '\n')); err != nil {
 		return err
@@ -303,7 +303,7 @@ func run() error {
 	if err = nativeTarget(env); err != nil {
 		return err
 	}
-	if _, err = command("build", "-trimpath", "-buildvcs=true", "-ldflags", flags, "-o", target, "./cmd/aikit"); err != nil {
+	if _, err = command("build", "-trimpath", "-buildvcs=true", "-ldflags", flags, "-o", target, "./cmd/conmesh"); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(target)

@@ -1,44 +1,48 @@
-# AIKIT
+<div align="center">
+  <img src="./conmesh.svg" alt="ConMesh" width="740">
+  <p><strong>The Context Intelligence Layer for AI Agents</strong></p>
+  <p>Local-first • Agent-agnostic • Codebase-aware</p>
+</div>
 
-AIKIT is a cross-platform, local-first command-line toolkit that manages reusable agents and skills, studies repository architecture, saves small evidence-backed knowledge packs, and exposes a shared hybrid code index to Claude Code and Codex via MCP.
+ConMesh is a cross-platform, local-first command-line toolkit that manages reusable agents and skills, studies repository architecture, saves small evidence-backed knowledge packs, and exposes a shared hybrid code index to Claude Code and Codex via MCP.
 
-## Install AIKIT
+## Install ConMesh
 
-AIKIT is a native executable. Installing an existing trusted Windows binary
+ConMesh is a native executable. Installing an existing trusted Windows binary
 requires no Go, Node.js, administrator privileges, model or account. Build the executable from source using the instructions below.
 
-In your own PowerShell window, from this repository with `aikit.exe` in its root:
+In your own PowerShell window, from this repository with `conmesh.exe` in its root:
 
 ```powershell
-Test-Path .\aikit.exe
-.\scripts\install.cmd .\aikit.exe
+Test-Path .\conmesh.exe
+.\scripts\install.cmd .\conmesh.exe
 ```
 
-The installer copies the binary into your per-user AIKIT directory and adds that
+The installer copies the binary into your per-user ConMesh directory and adds that
 directory to your user PATH. If you run the installer from another directory,
-replace `C:\path\to\AIKIT` with the full path to your AIKIT checkout.
+replace `C:\path\to\ConMesh` with the full path to your ConMesh checkout.
 
 ```powershell
-& 'C:\path\to\AIKIT\scripts\install.cmd' 'C:\path\to\AIKIT\aikit.exe'
+& 'C:\path\to\ConMesh\scripts\install.cmd' 'C:\path\to\ConMesh\conmesh.exe'
 ```
 
 Close and reopen the terminal application, including a parent editor such as VS
 Code if it launches your terminals. Then verify from any directory:
 
 ```powershell
-aikit --version
-aikit --help
+conmesh --version
+conmesh --help
 ```
 
-Bare `aikit` also displays help; it does not open an interactive application.
-Adding a directory to PATH does not create or install `aikit.exe`. If command
+Run `conmesh` or `conmesh menu` in a terminal. Use Up/Down to navigate, Enter to select, and Backspace to go back.
+If command
 discovery fails, check that the installed file exists and run it directly:
 
 ```powershell
-$aikitExe = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'AIKIT\bin\aikit.exe'
-Test-Path $aikitExe
-& $aikitExe --version
-Get-Command aikit -All
+$conmeshExe = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ConMesh\bin\conmesh.exe'
+Test-Path $conmeshExe
+& $conmeshExe --version
+Get-Command conmesh -All
 ```
 
 If `Test-Path` returns `False`, install a trusted binary first. Restarting parent
@@ -49,21 +53,21 @@ applications refreshes inherited PATH; it cannot fix a missing executable.
 Follow these steps to build a local index and run the Research Agent in your
 existing project chat. The examples use PowerShell.
 
-### 1. Open your project and initialize AIKIT
+### 1. Open your project and initialize ConMesh
 
 Replace the example path with the root of your own project.
 
 ```powershell
 Set-Location 'C:\path\to\your-project'
-aikit init --harness codex --index
-aikit status
+conmesh init --harness codex --index
+conmesh status
 ```
 
 `init` creates `.aikit/config.yaml`. `--harness codex` selects Codex and `--index`
 enables indexing in the settings. Use `--harness claude` for Claude Code or
 `--harness claude,codex` for both. For OpenCode, Cursor, or another local host,
-use `aikit init --index`. If you only want package management, use `aikit init`
-and stop here. `aikit doctor` checks available runtime features.
+use `conmesh init --index`. If you only want package management, use `conmesh init`
+and stop here. `conmesh doctor` checks available runtime features.
 
 If the project is already initialized, `init` preserves its settings. Edit
 `.aikit/config.yaml` to set `indexing.enabled` to `true` and add `"codex"` to the
@@ -72,12 +76,12 @@ If the project is already initialized, `init` preserves its settings. Edit
 ### 2. Build the local index
 
 ```powershell
-aikit index
+conmesh index
 ```
 
 This builds the searchable index of allowed files. Run it again after source
-changes. AIKIT reuses entries for unchanged files. To try the index, run
-`aikit search "request handler" --limit 10` or `aikit symbol Handler`, using a
+changes. ConMesh reuses entries for unchanged files. To try the index, run
+`conmesh search "request handler" --limit 10` or `conmesh symbol Handler`, using a
 query or exact symbol name from your project.
 
 ### 3. Install the skill and connect your agent tool
@@ -85,26 +89,26 @@ query or exact symbol name from your project.
 Preview the project configuration changes.
 
 ```powershell
-aikit sync --dry-run
+conmesh sync --dry-run
 ```
 
 Review the plan and any installed package instructions, then apply it.
 
 ```powershell
-aikit sync --trust
+conmesh sync --trust
 ```
 
 Sync installs the shared `aikit-research` project skill. It also connects MCP
 and installs a custom Research Agent for selected Codex and Claude Code
-integrations. For OpenCode, Cursor, or another host, set up the local AIKIT MCP
-server once in that tool. Configure it as a stdio server using the command `aikit mcp serve` from the project root.
+integrations. For OpenCode, Cursor, or another host, set up the local ConMesh MCP
+server once in that tool. Configure it as a stdio server using the command `conmesh mcp serve` from the project root.
 
 ### 4. Start research in the chat you already have open
 
 Send this message in your local project chat.
 
 ```text
-Run AIKIT research
+Run ConMesh research
 ```
 
 You can also select `aikit-research` from your tool's skill picker when available.
@@ -115,7 +119,7 @@ results to the same chat. Your tool needs local subagent support with MCP and
 project write access. The session's model provider may receive selected source
 during research.
 
-For other skills you've installed with `aikit skill add`, `aikit sync --trust` exports
+For other skills you've installed with `conmesh skill add`, `conmesh sync --trust` exports
 the effective project and global skills to the project's `.agents/skills/`
 directory. Select the exported skill by name in Codex to use it directly. In
 Codex CLI or the IDE extension, type `$` or use `/skills`. See
@@ -124,9 +128,9 @@ Codex CLI or the IDE extension, type `$` or use `/skills`. See
 ### 5. Review the proposed knowledge
 
 Review the Markdown files and the manifest diff. For each entry you want to
-approve, run `aikit knowledge show <id>` with its manifest ID. If the document
+approve, run `conmesh knowledge show <id>` with its manifest ID. If the document
 and citations look right, use the returned review digest in
-`aikit knowledge approve <id> --reviewed-digest <digest>`.
+`conmesh knowledge approve <id> --reviewed-digest <digest>`.
 
 ## Implementation status
 
@@ -146,13 +150,13 @@ no separate database installation or model is required.
 
 ```text
 go test ./...
-go build -o aikit.exe ./cmd/aikit
-go run ./cmd/aikit --version
-go run ./cmd/aikit --help
-go run ./cmd/aikit doctor
+go build -o conmesh.exe ./cmd/conmesh
+go run ./cmd/conmesh --version
+go run ./cmd/conmesh --help
+go run ./cmd/conmesh doctor
 ```
 
-Use `-o aikit` on Linux/macOS. `doctor` reports implementation status without
+Use `-o conmesh` on Linux/macOS. `doctor` reports implementation status without
 scanning. Indexing requires explicit opt-in.
 
 ## Contributing
@@ -161,7 +165,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## License
 
-AIKIT is licensed under [Apache-2.0](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for dependencies.
+ConMesh is licensed under [Apache-2.0](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for dependencies.
 
 ## External inspirations (not code dependencies)
 
@@ -170,3 +174,11 @@ AIKIT is licensed under [Apache-2.0](LICENSE). See [third-party notices](THIRD_P
 - [Matt Pocock skills](https://github.com/mattpocock/skills) — composable skills, optional third-party packs.
 
 Do not automatically vendor or copy external repositories. Verify source, license and compatibility before any incorporation.
+
+
+## Release versions
+
+Release tags use `vMAJOR.MINOR.PATCH`. The first stable release is `v1.0.0`.
+Use `v1.0.1` for compatible fixes and `v1.1.0` for compatible features.
+Signed release builds can check for updates from the menu. Set
+`AIKIT_AUTO_UPDATE_CHECK=1` to opt into background checks.

@@ -1,6 +1,6 @@
 # Security policy
 
-AIKIT is pre-release software. No production support
+ConMesh is pre-release software. No production support
 window, response-time guarantee or public release is currently promised.
 
 Report a suspected vulnerability privately to the repository owner. Use GitHub
@@ -9,7 +9,7 @@ private reporting channel without posting the exploit, repository content or
 credentials in an issue. Do not include real secrets in reproductions.
 
 Local indexing is opt-in.
-AIKIT applies path/ignore/content checks to its tools; it cannot prevent a
+ConMesh applies path/ignore/content checks to its tools; it cannot prevent a
 separate harness shell from reading files. Harness inference may transmit selected
 code to the harness provider. Secret detection covers tested patterns and is not
 a guarantee that every credential is detected.

@@ -191,7 +191,7 @@ func TestSyncResearchSubagentsAndSkills(t *testing.T) {
 		t.Fatal(err)
 	}
 	workflow := bytesAt(t, m, codexWorkflow)
-	if !bytes.Equal(workflow, bytesAt(t, m, claudeWorkflow)) || !bytes.Contains(workflow, []byte("aikit knowledge scaffold")) || !bytes.Contains(workflow, []byte("## Manifest schema")) {
+	if !bytes.Equal(workflow, bytesAt(t, m, claudeWorkflow)) || !bytes.Contains(workflow, []byte("conmesh knowledge scaffold")) || !bytes.Contains(workflow, []byte("## Manifest schema")) {
 		t.Fatal("harnesses did not get the same self-contained worker workflow")
 	}
 	for skill, worker := range map[string]string{codexSkill: codexWorkflow, claudeSkill: claudeWorkflow} {

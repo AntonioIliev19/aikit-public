@@ -60,7 +60,7 @@ func (t terminal) output(text string) string {
 					}
 				}
 			}
-		} else if strings.HasPrefix(trimmed, "AIKIT") || strings.HasPrefix(trimmed, "Usage:") {
+		} else if strings.HasPrefix(trimmed, "ConMesh") || strings.HasPrefix(trimmed, "Usage:") {
 			lines[i] = t.paint("1;36", strings.TrimSuffix(line, "\n")) + "\n"
 		} else if text == help && strings.HasPrefix(line, "  ") && trimmed != "" {
 			command := strings.Fields(trimmed)[0]

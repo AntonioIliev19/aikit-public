@@ -166,11 +166,11 @@ func addResearchSkill(base string, files map[string][]byte) error {
 	}
 	files[entry] = []byte(`---
 name: aikit-research
-description: Run AIKIT research. Delegate project architecture and team-practice research to a local subagent that updates the AIKIT knowledge manifest.
+description: Run ConMesh research. Delegate project architecture and team-practice research to a local subagent that updates the AIKIT knowledge manifest.
 ---
-` + header + `# Run AIKIT research
+` + header + `# Run ConMesh research
 
-When the user asks to run AIKIT research, delegate from this conversation to
+When the user asks to run ConMesh research, delegate from this conversation to
 one local subagent that can use the project's AIKIT MCP tools, run AIKIT CLI
 commands, and write knowledge proposals in the current project. Use the
 ` + researchName + ` custom subagent if your host offers it. Otherwise use a
@@ -198,7 +198,7 @@ func addResearchAgent(h string, files map[string][]byte) error {
 	if _, exists := files[agentPath]; exists {
 		return ErrConflict
 	}
-	instructions := "Read `" + workflow + "` from the project root and execute the AIKIT research workflow directly. Report validated proposals for human review."
+	instructions := "Read `" + workflow + "` from the project root and execute the ConMesh research workflow directly. Report validated proposals for human review."
 	if h == "claude" {
 		meta, err := yaml.Marshal(map[string]string{"name": researchName, "description": description})
 		if err != nil {
