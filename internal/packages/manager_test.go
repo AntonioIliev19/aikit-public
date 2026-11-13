@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/AntonioIliev19/conmesh/internal/config"
 )
@@ -508,5 +510,44 @@ func TestDirectoryEntryBudget(t *testing.T) {
 	}
 	if _, err := newManager(t).Add(context.Background(), "skill", src, "", "project", true); err == nil {
 		t.Fatal("directory entry budget not enforced")
+	}
+}
+
+// A program that briefly holds a file in the store (a virus scanner) must not
+// fail the update; one that keeps holding it gets the reason and keeps the state.
+func TestStoreRenameRetriesAndExplainsLockedFiles(t *testing.T) {
+	saved := renameDelays
+	renameDelays = []time.Duration{0, 0, 0}
+	t.Cleanup(func() { renameDelays = saved })
+	ctx := context.Background()
+	m := newManager(t)
+	src := sourceFixture(t, "sample", "1")
+	if _, err := m.Add(ctx, "skill", src, "", "project", true); err != nil {
+		t.Fatal(err)
+	}
+	busy := 2
+	m.rename = func(root *os.Root, a, b string) error {
+		if a == "packages" && busy > 0 {
+			busy--
+			return &os.LinkError{Op: "rename", Old: a, New: b, Err: errors.New("Access is denied.")}
+		}
+		return root.Rename(a, b)
+	}
+	writeFixture(t, src, "sample", "skill", "2", "New content.")
+	if r, err := m.Update(ctx, "skill", "sample", "", "project", true); err != nil || r.Entry.Version != "2" {
+		t.Fatal("transient lock should be retried", r, err)
+	}
+	busy = 100
+	writeFixture(t, src, "sample", "skill", "3", "Newer content.")
+	before := stateBytes(t, m)
+	_, err := m.Update(ctx, "skill", "sample", "", "project", true)
+	if err == nil || !strings.Contains(err.Error(), "Access is denied.") || !strings.Contains(err.Error(), "another program has a file in that folder open") {
+		t.Fatal("persistent lock not explained", err)
+	}
+	if !bytes.Equal(before, stateBytes(t, m)) {
+		t.Fatal("failed update changed the package state")
+	}
+	if _, err := os.Stat(filepath.Join(m.Project, ".conmesh", ".packages-backup")); !os.IsNotExist(err) {
+		t.Fatal("failed update left a backup that blocks later commands")
 	}
 }

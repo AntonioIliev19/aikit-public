@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/AntonioIliev19/conmesh/internal/config"
 	"github.com/AntonioIliev19/conmesh/internal/security"
@@ -454,11 +455,15 @@ func (m *Manager) commit(root *os.Root, scope string, entries []Entry, replace *
 		return security.ErrDenied
 	}
 	if hadOld {
-		if err := rename(root, "packages", ".packages-backup"); err != nil {
-			return errors.New("cannot stage previous package state")
+		if err := renameRetrying(rename, root, "packages", ".packages-backup"); err != nil {
+			reason := err
+			if inner := errors.Unwrap(err); inner != nil {
+				reason = inner // the OS reason without the repeated paths
+			}
+			return fmt.Errorf("cannot stage previous package state: could not move %s aside (%v). This usually means another program has a file in that folder open, such as an editor, a virus scanner or a sandboxed agent; close it or run the command outside the sandbox, then try again. Nothing was changed", filepath.Join(root.Name(), "packages"), reason)
 		}
 	}
-	if err := rename(root, stageName, "packages"); err != nil {
+	if err := renameRetrying(rename, root, stageName, "packages"); err != nil {
 		if hadOld {
 			if restoreErr := root.Rename(".packages-backup", "packages"); restoreErr != nil {
 				return errors.New("package recovery required: previous state retained in .packages-backup")
@@ -472,6 +477,23 @@ func (m *Manager) commit(root *os.Root, scope string, entries []Entry, replace *
 		}
 	}
 	return nil
+}
+
+// renameDelays spaces out rename attempts. On Windows a folder cannot be
+// renamed while another process has a file in it open; virus scanners and
+// search indexers usually let go within a second, so a short retry avoids
+// failing on them. A holder that stays (an editor) still fails, with its reason.
+var renameDelays = []time.Duration{0, 50 * time.Millisecond, 100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond, 800 * time.Millisecond}
+
+func renameRetrying(rename func(*os.Root, string, string) error, root *os.Root, from, to string) error {
+	var err error
+	for _, delay := range renameDelays {
+		time.Sleep(delay)
+		if err = rename(root, from, to); err == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 func entryFromSnapshot(s snapshot, scope string) Entry {
