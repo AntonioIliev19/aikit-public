@@ -80,13 +80,20 @@ func Run(args []string, stdout, stderr io.Writer, version string) int {
 			screen.enter()
 			defer screen.leave()
 			info.leaveScreen = screen.leave
+			// Resolved now: after a self-update this path holds the new release.
+			executable, exeErr := os.Executable()
+			last, reopen := 0, false
+			info.updated = func() { reopen = last == 0 && exeErr == nil }
 			err := runMenu(os.Stdin, stdout, out, version, func(args []string) {
-				Run(g.with(args), stdout, stderr, version)
+				last = Run(g.with(args), stdout, stderr, version)
 			}, loadMenuUpdates(), os.Getenv("CONMESH_AUTO_UPDATE_CHECK") == "1", terminalMenuMode(os.Stdin), info)
 			screen.leave() // before any error, so it stays visible
 			if err != nil {
 				fmt.Fprintln(stderr, "conmesh:", err)
 				return 1
+			}
+			if reopen {
+				return reopenMenu(executable, g.with(args), stderr)
 			}
 			return 0
 		}
@@ -143,6 +150,27 @@ func (g globalOptions) with(args []string) []string {
 		out = append(out, "--no-input")
 	}
 	return out
+}
+
+// reopenMenu starts the freshly installed executable's menu in this terminal
+// and waits for it, so users don't have to type conmesh again after Self-update.
+// The running process cannot replace itself on Windows, so it stays as a quiet
+// parent that only passes on the new menu's exit code.
+func reopenMenu(executable string, args []string, stderr io.Writer) int {
+	cmd := exec.Command(executable, args...)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	// Ctrl+C belongs to the new menu; this parent must not exit underneath it.
+	signal.Ignore(os.Interrupt)
+	defer signal.Reset(os.Interrupt)
+	if err := cmd.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			return exit.ExitCode()
+		}
+		fmt.Fprintln(stderr, "conmesh: the update is installed, but the menu could not reopen; run conmesh to open it")
+		return 0
+	}
+	return 0
 }
 
 var errUsage = errors.New("invalid command or arguments; use --help")

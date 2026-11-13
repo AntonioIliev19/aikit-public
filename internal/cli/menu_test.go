@@ -3,6 +3,9 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -243,14 +246,14 @@ func TestMenuUpdateRequiresConfirmation(t *testing.T) {
 			input := strings.NewReader(keys)
 			if err := runMenu(input, &out, terminal{}, "v1.0.0", func(args []string) {
 				calls = append(calls, args)
-			}, updates, false, nil, menuInfo{}); err != nil {
+			}, updates, false, nil, menuInfo{updated: func() { calls = append(calls, []string{"reopen"}) }}); err != nil {
 				t.Fatal(err)
 			}
 			if checks != 1 || !strings.Contains(out.String(), "Update available: v1.1.0") {
 				t.Fatalf("checks = %d, output = %q", checks, out.String())
 			}
 			if answer == "y" {
-				if !reflect.DeepEqual(calls, [][]string{{"update", "--version", "v1.1.0"}}) {
+				if !reflect.DeepEqual(calls, [][]string{{"update", "--version", "v1.1.0"}, {"reopen"}}) {
 					t.Fatalf("commands = %v", calls)
 				}
 				if self := menuOptions[menuIndex(t, "self-update")]; !sameAsMatches(self.sameAs[0], calls[0]) {
@@ -429,5 +432,24 @@ func TestMenuLeavesScreenBeforeLastingOutput(t *testing.T) {
 	}
 	if !reflect.DeepEqual(events, []string{"leave", "--help"}) {
 		t.Fatalf("events = %v", events)
+	}
+}
+
+// The reopened menu's exit code becomes this process's exit code.
+func TestReopenMenuPassesExitCode(t *testing.T) {
+	if os.Getenv("CONMESH_REOPEN_CHILD") == "1" {
+		os.Exit(3)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CONMESH_REOPEN_CHILD", "1")
+	if code := reopenMenu(exe, []string{"-test.run=^TestReopenMenuPassesExitCode$"}, io.Discard); code != 3 {
+		t.Fatalf("exit code = %d, want 3", code)
+	}
+	var stderr bytes.Buffer
+	if code := reopenMenu(filepath.Join(t.TempDir(), "missing.exe"), nil, &stderr); code != 0 || !strings.Contains(stderr.String(), "run conmesh to open it") {
+		t.Fatalf("missing executable: code = %d, stderr = %q", code, stderr.String())
 	}
 }

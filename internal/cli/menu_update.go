@@ -114,7 +114,7 @@ func (m menuUpdates) install(ctx context.Context, out io.Writer, installed strin
 		_, err := fmt.Fprintf(out, "You're up to date on %s.\n\n", installed)
 		return err
 	}
-	if !confirm("Install this verified update and close the menu?") {
+	if !confirm("Install this verified update and reopen the menu?") {
 		return nil
 	}
 	run([]string{"update", "--version", result.Version})

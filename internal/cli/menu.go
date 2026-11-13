@@ -47,6 +47,9 @@ type menuInfo struct {
 	// leaveScreen returns to the normal screen before output that must stay
 	// visible after the menu closes (Help, Self-update). Nil in tests.
 	leaveScreen func()
+	// updated is called after the menu ran a confirmed self-update, before the
+	// menu closes; the caller reopens the new menu if the update succeeded.
+	updated func()
 }
 
 // altScreen switches to the terminal's alternate screen buffer and back.
@@ -365,6 +368,9 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 				run(args)
 			})
 			if err == errMenuExit {
+				if info.updated != nil {
+					info.updated()
+				}
 				return nil
 			}
 			if err != nil {
