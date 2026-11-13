@@ -4,6 +4,7 @@ package update
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -16,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/AntonioIliev19/conmesh/internal/config"
@@ -180,6 +182,7 @@ func (c *Client) Apply(ctx context.Context, version, executable string) error {
 		return err
 	}
 	defer unlock(r)
+	sweepDiscarded(r, name)
 	backup, stage, meta := name+".previous", name+".staged", name+".update.json"
 	old, err := read(r, name)
 	if err != nil {
@@ -238,35 +241,90 @@ func (c *Client) Apply(ctx context.Context, version, executable string) error {
 // ErrCurrent reports that the verified release is the executable already installed.
 var ErrCurrent = errors.New("UPDATE_CURRENT: this release is already installed")
 
-// clearFinishedUpdate removes the rollback copy and receipt left by an earlier
-// update, so each update keeps exactly one rollback step. It only does so when
-// the receipt proves that update finished: the receipt names the executable now
-// installed and, if the backup is still there, the backup it recorded. Any other
-// leftover state is kept and reported for review.
-func clearFinishedUpdate(r *os.Root, name, current string) error {
-	backup, stage, meta := name+".previous", name+".staged", name+".update.json"
-	exists := func(n string) bool { _, err := r.Lstat(n); return !os.IsNotExist(err) }
-	hasBackup, hasStage, hasMeta := exists(backup), exists(stage), exists(meta)
-	if !hasBackup && !hasStage && !hasMeta {
+// discardedSuffix marks old executables moved aside because they were in use.
+const discardedSuffix = ".old-"
+
+// discard removes an old executable. Windows refuses to delete an executable
+// that a running program uses (another open ConMesh menu, an MCP server, or
+// this process itself) but allows renaming it, so such a file is moved aside to
+// a unique name and deleted by a later update or rollback once it is free.
+func discard(r *os.Root, name, file string) error {
+	if err := r.Remove(file); err == nil || os.IsNotExist(err) {
 		return nil
 	}
-	review := fmt.Errorf("UPDATE_STATE: unfinished or unrecognised update files next to %s (%s, %s, %s); run conmesh update --rollback or review and remove them", name, backup, stage, meta)
-	if hasStage || !hasMeta {
+	var id [6]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		return err
+	}
+	return r.Rename(file, name+discardedSuffix+hex.EncodeToString(id[:]))
+}
+
+// sweepDiscarded deletes executables moved aside earlier that are no longer in
+// use. Files still in use stay for a later run.
+func sweepDiscarded(r *os.Root, name string) {
+	entries, err := security.ReadDirBounded(r, ".", 4096)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), name+discardedSuffix) {
+			continue
+		}
+		if info, err := r.Lstat(e.Name()); err == nil && info.Mode().IsRegular() {
+			r.Remove(e.Name())
+		}
+	}
+}
+
+// clearFinishedUpdate removes what an earlier update or rollback left behind,
+// so each update keeps exactly one rollback step. It acts only when the receipt
+// proves the earlier operation finished:
+//   - after an update, the receipt names the executable now installed and, if
+//     the rollback copy is still there, that copy;
+//   - after a rollback that could not delete the replaced executable, the
+//     receipt names the executable now installed as the previous one and the
+//     leftover staged file as the one that was installed.
+//
+// Any other leftover state is kept and reported for review.
+func clearFinishedUpdate(r *os.Root, name, current string) error {
+	backup, stage, meta := name+".previous", name+".staged", name+".update.json"
+	var present []string
+	exists := func(n string) bool {
+		_, err := r.Lstat(n)
+		if !os.IsNotExist(err) {
+			present = append(present, n)
+			return true
+		}
+		return false
+	}
+	hasBackup, hasStage, hasMeta := exists(backup), exists(stage), exists(meta)
+	if len(present) == 0 {
+		return nil
+	}
+	review := fmt.Errorf("UPDATE_STATE: update files next to %s do not match this installation (%s). Close other ConMesh windows and tools that run ConMesh, such as an MCP server, then run conmesh update --rollback or remove those files", name, strings.Join(present, ", "))
+	if !hasMeta {
 		return review
 	}
 	raw, err := security.ReadFileBounded(r, meta, 1024)
 	var record receipt
-	if err != nil || config.Decode(raw, &record) != nil || record.Installed != current {
+	if err != nil || config.Decode(raw, &record) != nil {
 		return review
 	}
-	if hasBackup {
-		previous, err := read(r, backup)
-		if err != nil || digest(previous) != record.Previous {
+	matches := func(file, want string) bool {
+		data, err := read(r, file)
+		return err == nil && digest(data) == want
+	}
+	switch {
+	case !hasStage && record.Installed == current:
+		if hasBackup && (!matches(backup, record.Previous) || discard(r, name, backup) != nil) {
 			return review
 		}
-		if r.Remove(backup) != nil {
+	case hasStage && !hasBackup && record.Previous == current:
+		if !matches(stage, record.Installed) || discard(r, name, stage) != nil {
 			return review
 		}
+	default:
+		return review
 	}
 	if r.Remove(meta) != nil {
 		return review
@@ -282,6 +340,7 @@ func Rollback(ctx context.Context, executable string) error {
 		return err
 	}
 	defer unlock(r)
+	sweepDiscarded(r, name)
 	backup, stage, meta := name+".previous", name+".staged", name+".update.json"
 	raw, err := security.ReadFileBounded(r, meta, 1024)
 	var record receipt
@@ -309,9 +368,10 @@ func Rollback(ctx context.Context, executable string) error {
 		r.Rename(stage, name)
 		return ErrInstall
 	}
-	// Windows may retain the running replacement until it exits. Cleanup failure
-	// leaves an inert staged file, never destroys the restored executable.
-	if err = r.Remove(stage); err != nil {
+	// The replaced executable is usually this running process; on Windows it is
+	// moved aside and deleted by a later run. Cleanup failure never touches the
+	// restored executable.
+	if err = discard(r, name, stage); err != nil {
 		return errors.New("UPDATE_CLEANUP: rollback restored executable; remove retained staged image after exit")
 	}
 	if r.Remove(meta) != nil {

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -123,7 +124,7 @@ func TestUnrecognisedUpdateStateIsKept(t *testing.T) {
 			setup(path)
 			before, _ := os.ReadDir(filepath.Dir(path))
 			err := c.Apply(context.Background(), "v1.2.3", path)
-			if err == nil || !strings.Contains(err.Error(), "UPDATE_STATE") || !strings.Contains(err.Error(), "conmesh.exe.previous") {
+			if err == nil || !strings.Contains(err.Error(), "UPDATE_STATE") || !strings.Contains(err.Error(), "Close other ConMesh windows") {
 				t.Fatal("unrecognised state not reported", err)
 			}
 			after, _ := os.ReadDir(filepath.Dir(path))
@@ -328,7 +329,126 @@ func TestRollbackChild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = Rollback(context.Background(), path); err != nil && !(runtime.GOOS == "windows" && err.Error() == "UPDATE_CLEANUP: rollback restored executable; remove retained staged image after exit") {
+	// The running replacement cannot be deleted on Windows; it is moved aside.
+	if err = Rollback(context.Background(), path); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// After a rollback run by the replaced executable itself, nothing blocks the
+// next update, and the moved-aside executable is deleted once it has exited.
+func TestUpdateAfterRunningRollback(t *testing.T) {
+	original, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := physical(t)
+	path := filepath.Join(dir, "rollback-then-update.exe")
+	old := append(append([]byte{}, original...), []byte("v1 marker")...)
+	os.WriteFile(path, old, 0755)
+	c, _ := release(t, append(append([]byte{}, original...), []byte("v2 marker")...), nil)
+	if err := c.Apply(context.Background(), "v1.2.3", path); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(path, "-test.run=TestRollbackChild$")
+	cmd.Env = append(os.Environ(), "CONMESH_ROLLBACK_TEST_CHILD=1")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("running rollback: %v %s", err, output)
+	}
+	for _, leftover := range []string{".staged", ".update.json", ".previous"} {
+		if _, err := os.Stat(path + leftover); !os.IsNotExist(err) {
+			t.Fatalf("%s left behind by rollback", leftover)
+		}
+	}
+	c3, _ := release(t, []byte("v3 executable"), nil)
+	if err := c3.Apply(context.Background(), "v1.2.3", path); err != nil {
+		t.Fatal("update after rollback:", err)
+	}
+	if aside, _ := filepath.Glob(path + discardedSuffix + "*"); len(aside) != 0 {
+		t.Fatal("moved-aside executable not cleaned up", aside)
+	}
+}
+
+// An old executable that is still running elsewhere (an open menu, an MCP
+// server) must not block the next update.
+func TestUpdateWhileRollbackCopyIsRunning(t *testing.T) {
+	original, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := physical(t)
+	path := filepath.Join(dir, "held.exe")
+	os.WriteFile(path, append(append([]byte{}, original...), []byte("v1 marker")...), 0755)
+	holder := exec.Command(path, "-test.run=TestHoldChild$")
+	holder.Env = append(os.Environ(), "CONMESH_HOLD_CHILD=1")
+	stdin, err := holder.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := holder.Start(); err != nil {
+		t.Fatal(err)
+	}
+	stopped := false
+	stop := func() {
+		if !stopped {
+			stopped = true
+			stdin.Close()
+			holder.Wait()
+		}
+	}
+	defer stop()
+	// v1 keeps running while it becomes the rollback copy, then is replaced again.
+	for _, payload := range []string{"v2 executable", "v3 executable"} {
+		c, _ := release(t, []byte(payload), nil)
+		if err := c.Apply(context.Background(), "v1.2.3", path); err != nil {
+			t.Fatalf("update to %q with v1 running: %v", payload, err)
+		}
+	}
+	if got, _ := os.ReadFile(path); string(got) != "v3 executable" {
+		t.Fatal("not updated", string(got))
+	}
+	stop()
+	c, _ := release(t, []byte("v4 executable"), nil)
+	if err := c.Apply(context.Background(), "v1.2.3", path); err != nil {
+		t.Fatal(err)
+	}
+	if aside, _ := filepath.Glob(path + discardedSuffix + "*"); len(aside) != 0 {
+		t.Fatal("moved-aside executable not cleaned up after it exited", aside)
+	}
+}
+
+func TestHoldChild(t *testing.T) {
+	if os.Getenv("CONMESH_HOLD_CHILD") != "1" {
+		t.Skip("subprocess entry")
+	}
+	io.Copy(io.Discard, os.Stdin) // run until the parent closes stdin
+}
+
+// The exact state an older rollback leaves on Windows: the previous executable
+// restored, the replaced one still staged, and the receipt.
+func TestUpdateClearsStateLeftByOlderRollback(t *testing.T) {
+	path := filepath.Join(physical(t), "conmesh.exe")
+	os.WriteFile(path, []byte("v1"), 0755)
+	os.WriteFile(path+".staged", []byte("v2"), 0755)
+	os.WriteFile(path+".update.json", []byte(`{"previous_sha256":"`+digest([]byte("v1"))+`","installed_sha256":"`+digest([]byte("v2"))+`"}`), 0600)
+	c, _ := release(t, []byte("v3"), nil)
+	if err := c.Apply(context.Background(), "v1.2.3", path); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "v3" {
+		t.Fatal("not updated")
+	}
+	// A staged file that is not the recorded one is still refused, and the
+	// error names only the files that exist.
+	path = filepath.Join(physical(t), "conmesh.exe")
+	os.WriteFile(path, []byte("v1"), 0755)
+	os.WriteFile(path+".staged", []byte("unknown"), 0755)
+	os.WriteFile(path+".update.json", []byte(`{"previous_sha256":"`+digest([]byte("v1"))+`","installed_sha256":"`+digest([]byte("v2"))+`"}`), 0600)
+	err := c.Apply(context.Background(), "v1.2.3", path)
+	if err == nil || !strings.Contains(err.Error(), "(conmesh.exe.staged, conmesh.exe.update.json)") || !strings.Contains(err.Error(), "Close other ConMesh windows") {
+		t.Fatal("unrecognised staged file not reported", err)
+	}
+	if got, _ := os.ReadFile(path + ".staged"); string(got) != "unknown" {
+		t.Fatal("unrecognised file changed")
 	}
 }
