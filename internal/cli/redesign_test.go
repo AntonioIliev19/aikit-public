@@ -216,3 +216,26 @@ func TestStepReportsOnlyOnTerminal(t *testing.T) {
 		t.Fatal("read-only command rendered a change report")
 	}
 }
+
+func TestListAvailableShowsPredefinedPackages(t *testing.T) {
+	dir := physicalTemp(t)
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"agent", "list", "--available", "--json"}, &stdout, &stderr, "test", dir, filepath.Join(dir, "global")); code != 0 {
+		t.Fatal(code, stderr.String())
+	}
+	var entries []map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &entries); err != nil || len(entries) < 3 || entries[0]["source"] != "builtin:angular-agent" {
+		t.Fatal("available JSON", err, stdout.String())
+	}
+	stdout.Reset()
+	if code := run([]string{"skill", "list", "--available", "--json"}, &stdout, &stderr, "test", dir, filepath.Join(dir, "global")); code != 0 || strings.TrimSpace(stdout.String()) != "[]" {
+		t.Fatal("no predefined skills should be []", code, stdout.String())
+	}
+	if code := run([]string{"agent", "list", "--available", "--global"}, &stdout, &stderr, "test", dir, filepath.Join(dir, "global")); code != 2 {
+		t.Fatal("--available with a scope must be a usage error", code)
+	}
+	stdout.Reset()
+	if code := run([]string{"agent", "add", "builtin:repository-research", "--global", "--trust"}, &stdout, &stderr, "test", dir, filepath.Join(dir, "global")); code != 0 || !strings.Contains(stdout.String(), "Installed agent repository-research") {
+		t.Fatal("builtin add", code, stdout.String(), stderr.String())
+	}
+}

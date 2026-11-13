@@ -144,6 +144,10 @@ func validateEntry(e Entry, scope string) error {
 		if err != nil || !isGit || u != e.Source || !validRef(e.Ref) || !commitPattern.MatchString(e.Commit) {
 			return errors.New("invalid Git source in package lock")
 		}
+	} else if _, ok := builtinID(e.Source); ok {
+		if e.Ref != "" {
+			return errors.New("invalid predefined source in package lock")
+		}
 	} else if !filepath.IsAbs(e.Source) || security.CheckPath(e.Source) != nil {
 		return errors.New("invalid local source in package lock")
 	}
@@ -520,15 +524,21 @@ func (m *Manager) install(ctx context.Context, kind, id, source, ref, scope stri
 			ref = previous.Ref
 		}
 	}
-	canonical, isGit, err := canonicalSource(source)
-	if err != nil {
-		return Result{}, err
-	}
 	var s snapshot
-	if isGit {
-		s, err = loadGit(ctx, canonical, kind, ref, m.git)
+	if _, ok := builtinID(source); ok {
+		// Predefined packages carry their own version; a ref is only a check.
+		s, err = loadBuiltin(ctx, source, kind, ref)
+		s.ref = ""
 	} else {
-		s, err = loadLocal(ctx, canonical, kind, ref)
+		canonical, isGit, cerr := canonicalSource(source)
+		if cerr != nil {
+			return Result{}, cerr
+		}
+		if isGit {
+			s, err = loadGit(ctx, canonical, kind, ref, m.git)
+		} else {
+			s, err = loadLocal(ctx, canonical, kind, ref)
+		}
 	}
 	if err != nil {
 		return Result{}, err

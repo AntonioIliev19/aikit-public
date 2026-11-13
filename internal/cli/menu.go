@@ -13,6 +13,7 @@ import (
 
 	"github.com/AntonioIliev19/conmesh/internal/config"
 	"github.com/AntonioIliev19/conmesh/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/packages"
 	"github.com/AntonioIliev19/conmesh/internal/update"
 )
 
@@ -42,6 +43,66 @@ var menuOptions = []menuOption{
 type menuInfo struct {
 	width     int
 	workspace workspaceStatus
+	packages  menuPackages
+}
+
+// menuPackages gives the menu direct access to installed and predefined
+// packages. When unset (tests), List and Install fall back to plain commands.
+type menuPackages struct {
+	catalog []packages.CatalogEntry
+	list    func(kind string) ([]packages.Item, error)
+}
+
+func loadMenuPackages(cwd string) menuPackages {
+	var mp menuPackages
+	mp.catalog, _ = packages.Catalog("")
+	project, _, err := config.Find(cwd)
+	if err != nil {
+		project = ""
+	}
+	global, err := config.GlobalDir()
+	if err != nil {
+		return mp
+	}
+	m := packages.New(project, global)
+	mp.list = func(kind string) ([]packages.Item, error) { return m.List(context.Background(), kind, "") }
+	return mp
+}
+
+// packageListing shows installed agents and skills under their own headings.
+func packageListing(t terminal, list func(string) ([]packages.Item, error)) string {
+	var b strings.Builder
+	for i, kind := range []string{"agent", "skill"} {
+		if i > 0 {
+			fmt.Fprintln(&b)
+		}
+		fmt.Fprintln(&b, t.paint(styleBold, strings.ToUpper(kind[:1])+kind[1:]+"s"))
+		items, err := list(kind)
+		if err != nil {
+			fmt.Fprintln(&b, "  "+t.paint(styleWarn, "unavailable")+t.paint(styleDim, "  run conmesh "+kind+" list for details"))
+			continue
+		}
+		if len(items) == 0 {
+			fmt.Fprintln(&b, t.paint(styleDim, "  none installed"))
+			continue
+		}
+		idWidth := 0
+		for _, item := range items {
+			idWidth = max(idWidth, cells(item.ID))
+		}
+		for _, item := range items {
+			source := printable(item.Source)
+			if strings.HasPrefix(source, packages.BuiltinPrefix) {
+				source = "predefined"
+			}
+			detail := item.Version + "  " + item.Scope + "  " + source
+			if !item.Effective {
+				detail += "  shadowed by " + printable(item.ShadowedBy)
+			}
+			fmt.Fprintln(&b, "  "+pad(item.ID, idWidth)+"  "+t.paint(styleDim, detail))
+		}
+	}
+	return b.String()
 }
 
 type workspaceStatus struct {
@@ -247,14 +308,20 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 			}
 			return inputErr
 		case "install":
-			menuPackage(out, prompt, pick, confirm, run, "add")
+			menuInstall(out, prompt, pick, confirm, run, info.packages.catalog)
 		case "uninstall":
 			menuPackage(out, prompt, pick, confirm, run, "remove")
 		case "update":
 			menuPackage(out, prompt, pick, confirm, run, "update")
 		case "list":
-			run([]string{"agent", "list"})
-			run([]string{"skill", "list"})
+			if info.packages.list != nil {
+				if _, err := io.WriteString(out, packageListing(t, info.packages.list)); err != nil {
+					return err
+				}
+			} else {
+				run([]string{"agent", "list"})
+				run([]string{"skill", "list"})
+			}
 		case "workspace":
 			run([]string{"status"})
 		case "doctor":
@@ -270,6 +337,10 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 			if err != nil {
 				return err
 			}
+		}
+		// Separate the action's output from the menu drawn below it.
+		if _, err := fmt.Fprintln(out); err != nil {
+			return err
 		}
 	}
 }
@@ -362,6 +433,43 @@ func menuPackage(out io.Writer, prompt func(string) string, pick func(string, []
 	fmt.Fprintf(out, "  %s %s %q (%s scope)\n", action, kind, value, scope)
 	if confirm("Apply this package change?") {
 		run(args)
+	}
+}
+
+// menuInstall offers the predefined packages first, then any local folder or
+// HTTPS Git URL through the regular package flow.
+func menuInstall(out io.Writer, prompt func(string) string, pick func(string, []menuOption) int, confirm func(string) bool, run func([]string), catalog []packages.CatalogEntry) {
+	if len(catalog) == 0 {
+		menuPackage(out, prompt, pick, confirm, run, "add")
+		return
+	}
+	options := make([]menuOption, 0, len(catalog)+1)
+	for _, e := range catalog {
+		options = append(options, menuOption{group: "Predefined " + e.Type + "s", subtitle: "shipped with ConMesh", name: e.Title, description: e.Description,
+			sameAs: []string{"conmesh " + e.Type + " add " + e.Source + " --trust"}})
+	}
+	options = append(options, menuOption{group: "Other source", name: "Folder or web URL", description: "Local package directory or HTTPS Git URL",
+		sameAs: []string{"conmesh skill add <source> --trust", "conmesh agent add <source> --trust"}})
+	choice := pick("Choose what to install", options)
+	if choice < 0 {
+		return
+	}
+	if choice == len(catalog) {
+		menuPackage(out, prompt, pick, confirm, run, "add")
+		return
+	}
+	e := catalog[choice]
+	scopes := []menuOption{{name: "project", description: "Current project"}, {name: "global", description: "All projects for this user"}}
+	selected := pick("Choose a scope", scopes)
+	if selected < 0 {
+		return
+	}
+	scope := scopes[selected].name
+	fmt.Fprintf(out, "  add %s %s %s (%s scope)\n", e.Type, e.ID, e.Version, scope)
+	fmt.Fprintln(out, "  Its instructions and license are copied into ConMesh's package store;")
+	fmt.Fprintln(out, "  review them and `conmesh sync --dry-run` before applying with --trust.")
+	if confirm("Apply this package change?") {
+		run([]string{e.Type, "add", e.Source, "--" + scope, "--trust"})
 	}
 }
 

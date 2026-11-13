@@ -6,13 +6,22 @@
 | [.NET](dotnet-agent/AGENT.md) | C# implementation and review |
 | [Repository research](repository-research/AGENT.md) | Scoped, evidence-backed Markdown guidance |
 
-From an initialized project, install one package using its directory in a local ConMesh checkout.
+These packages ship inside ConMesh. From an initialized project, choose one under
+**Install** in the `conmesh` menu, or install it by ID:
 
 ```text
-conmesh agent add "<conmesh-checkout>/agents/angular-agent" --trust --project
+conmesh agent list --available
+conmesh agent add builtin:angular-agent --trust --project
 conmesh agent list --project
 conmesh sync --dry-run
 ```
+
+`conmesh package update <id> --type agent --trust` refreshes an installed
+predefined agent from the ConMesh version you are running. A local checkout also
+works as a source: `conmesh agent add "<conmesh-checkout>/agents/angular-agent" --trust`.
+
+To add a new predefined package, create its directory here and add the directory
+name to the `go:embed` line in `catalog.go`; a test fails if you forget.
 
 Review the agent and the sync preview before running the corresponding trusted operation. Apply an approved sync with `conmesh sync --trust`. Codex and Claude Code receive the Markdown playbook through their project agent configuration.
 

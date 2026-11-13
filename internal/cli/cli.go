@@ -52,13 +52,14 @@ Commands:
   mcp serve [--project path]        Read-only stdio tools, trusted startup root
   sync --dry-run                    Plan project Claude/Codex integration
   sync --trust                      Apply reviewed plan with owned backups
-  agent|skill add <directory|https> --trust [--version ref] [--global|--project]
+  agent|skill add <directory|https|builtin:id> --trust [--version ref] [--global|--project]
   agent|skill list [--all|--global|--project] [--json]
+  agent|skill list --available [--json]  Predefined packages shipped with ConMesh
   agent|skill remove <id> [--global|--project]
   package update <id> --type agent|skill --trust [--version ref] [--global|--project]
 
 Review package instructions and license before --trust. Git sources require an
-exact --version ref. Archives and package hooks are unsupported. Package scope
+exact --version ref; builtin:id sources need none. Archives and package hooks are unsupported. Package scope
 for add/remove/update defaults to project; list defaults to all scopes. Project
 overrides shadow project packages, then global ones.
 `
@@ -71,7 +72,7 @@ func Run(args []string, stdout, stderr io.Writer, version string) int {
 		out := terminalForOptions(stdout, g.noColor)
 		if file, ok := stdout.(*os.File); !g.noInput && out.live && ok && isTerminal(os.Stdin) && enableColor(file) {
 			cwd, _ := os.Getwd()
-			info := menuInfo{width: terminalWidth(file), workspace: loadWorkspace(context.Background(), cwd)}
+			info := menuInfo{width: terminalWidth(file), workspace: loadWorkspace(context.Background(), cwd), packages: loadMenuPackages(cwd)}
 			err := runMenu(os.Stdin, stdout, out, version, func(args []string) {
 				Run(g.with(args), stdout, stderr, version)
 			}, loadMenuUpdates(), os.Getenv("CONMESH_AUTO_UPDATE_CHECK") == "1", terminalMenuMode(os.Stdin), info)
@@ -488,6 +489,7 @@ func executeCommand(ctx context.Context, args []string, version, cwd, global str
 	case "list":
 		allowed["all"] = false
 		allowed["json"] = false
+		allowed["available"] = false
 	case "remove":
 	default:
 		return "", errUsage
@@ -506,7 +508,7 @@ func executeCommand(ctx context.Context, args []string, version, cwd, global str
 			return "", errUsage
 		}
 		source := opts.positionals[0]
-		if !strings.Contains(source, "://") && !filepath.IsAbs(source) {
+		if !strings.Contains(source, "://") && !strings.HasPrefix(source, packages.BuiltinPrefix) && !filepath.IsAbs(source) {
 			source = filepath.Join(cwd, source)
 		}
 		result, err := m.Add(ctx, kind, source, opts.values["version"], scope, opts.has("trust"))
@@ -541,6 +543,12 @@ func executeCommand(ctx context.Context, args []string, version, cwd, global str
 	case "list":
 		if len(opts.positionals) != 0 || opts.has("all") && (opts.has("global") || opts.has("project")) {
 			return "", errUsage
+		}
+		if opts.has("available") {
+			if opts.has("all") || opts.has("global") || opts.has("project") {
+				return "", errUsage
+			}
+			return availableOutput(kind, opts.has("json"))
 		}
 		selectedScope := ""
 		if opts.has("global") {
@@ -577,6 +585,29 @@ func executeCommand(ctx context.Context, args []string, version, cwd, global str
 		return out.String(), nil
 	}
 	return "", errUsage
+}
+
+// availableOutput lists the predefined packages shipped in this binary.
+func availableOutput(kind string, asJSON bool) (string, error) {
+	entries, err := packages.Catalog(kind)
+	if err != nil {
+		return "", err
+	}
+	if asJSON {
+		if entries == nil {
+			entries = []packages.CatalogEntry{}
+		}
+		data, _ := json.MarshalIndent(entries, "", "  ")
+		return string(data) + "\n", nil
+	}
+	if len(entries) == 0 {
+		return "No predefined " + kind + "s in this build.\n", nil
+	}
+	var out strings.Builder
+	for _, e := range entries {
+		fmt.Fprintf(&out, "%s\t%s\t%s\t%s\n", e.Source, e.Version, e.Title, e.Description)
+	}
+	return out.String(), nil
 }
 
 func formatResult(r packages.Result) string {

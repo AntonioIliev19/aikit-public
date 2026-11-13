@@ -9,6 +9,8 @@
 ConMesh also manages agents and skills and can expose its index over MCP to Claude Code, Codex, and other compatible hosts.
 
 Browse the [predefined agents](agents/) for Angular, .NET, and repository research.
+They ship inside ConMesh: pick one under **Install** in the menu, or run
+`conmesh agent list --available` and `conmesh agent add builtin:<id> --trust`.
 
 ## Fast install with your coding agent
 
@@ -56,8 +58,10 @@ conmesh --help
 Run `conmesh` or `conmesh menu` in a terminal. The menu shows the current workspace
 and version, then groups its items under **Packages** (Install, Update, List,
 Uninstall), **Project** (Workspace, Doctor) and **ConMesh** (Help, Self-update,
-Quit). **Update** updates an installed agent or skill; **Self-update** checks for
-and installs a verified ConMesh release. The "same as" line under the menu shows
+Quit). **Install** lists the predefined agents first, then accepts any local
+package folder or HTTPS Git URL. **List** shows installed agents and skills under
+their own headings. **Update** updates an installed agent or skill; **Self-update**
+checks for and installs a verified ConMesh release. The "same as" line under the menu shows
 the equivalent command for the highlighted item.
 
 | Key | Action |

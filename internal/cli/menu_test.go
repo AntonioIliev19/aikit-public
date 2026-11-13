@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/AntonioIliev19/conmesh/internal/packages"
 )
 
 const down, up = "\x1b[B", "\x1b[A"
@@ -349,5 +351,58 @@ func TestMenuHelpReturnsToShell(t *testing.T) {
 	options, commands := strings.Index(screen, "\nOptions:\n"), strings.Index(screen, "\nCommands:\n")
 	if options < 0 || commands <= options || strings.Contains(screen[commands:], "navigate") {
 		t.Fatal("expected options and commands followed by a return to the shell")
+	}
+}
+
+func TestMenuInstallsPredefinedPackageAndListsByKind(t *testing.T) {
+	catalog := []packages.CatalogEntry{
+		{ID: "angular-agent", Type: "agent", Version: "1.0.0", Title: "Angular Agent", Description: "Angular work", Source: "builtin:angular-agent"},
+		{ID: "dotnet-agent", Type: "agent", Version: "1.0.0", Title: ".NET Agent", Description: "C# work", Source: "builtin:dotnet-agent"},
+	}
+	list := func(kind string) ([]packages.Item, error) {
+		if kind == "agent" {
+			return []packages.Item{{Entry: packages.Entry{ID: "dotnet-agent", Version: "1.0.0", Scope: "project", Source: "builtin:dotnet-agent"}, Effective: true}}, nil
+		}
+		return nil, nil
+	}
+	var out bytes.Buffer
+	var calls [][]string
+	// Install: second predefined item, project scope, Confirm. Then List, then quit.
+	input := moveTo(t, "install") + down + "\r" + "\r" + down + "\r" + moveTo(t, "list") + "q"
+	if err := runMenu(strings.NewReader(input), &out, terminal{}, "dev", func(args []string) {
+		calls = append(calls, args)
+	}, menuUpdates{}, false, nil, menuInfo{packages: menuPackages{catalog: catalog, list: list}}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{{"agent", "add", "builtin:dotnet-agent", "--project", "--trust"}}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("commands = %v, want %v", calls, want)
+	}
+	screen := out.String()
+	for _, text := range []string{"Predefined agents  shipped with ConMesh", "Angular Agent", "Folder or web URL",
+		"same as  conmesh agent add builtin:angular-agent --trust",
+		"Agents\n  dotnet-agent  1.0.0  project  predefined\n\nSkills\n  none installed\n\n"} {
+		if !strings.Contains(screen, text) {
+			t.Fatalf("screen missing %q:\n%s", text, screen)
+		}
+	}
+	if strings.Count(screen, "none installed") != 1 || strings.Contains(screen, "requested scope") {
+		t.Fatalf("list output repeated or unclear:\n%s", screen)
+	}
+}
+
+func TestMenuInstallOtherSourceUsesPackageFlow(t *testing.T) {
+	catalog := []packages.CatalogEntry{{ID: "angular-agent", Type: "agent", Version: "1.0.0", Title: "Angular Agent", Source: "builtin:angular-agent"}}
+	var calls [][]string
+	// Other source -> skill -> local folder -> project -> Confirm.
+	input := moveTo(t, "install") + down + "\r" + down + "\r" + "C:/pkgs/review\r" + "\r" + down + "\r" + "q"
+	if err := runMenu(strings.NewReader(input), &bytes.Buffer{}, terminal{}, "dev", func(args []string) {
+		calls = append(calls, args)
+	}, menuUpdates{}, false, nil, menuInfo{packages: menuPackages{catalog: catalog}}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{{"skill", "add", "C:/pkgs/review", "--project", "--trust"}}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("commands = %v, want %v", calls, want)
 	}
 }
