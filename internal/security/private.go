@@ -69,12 +69,12 @@ func PrivateFile(root *os.Root, name string, create bool) (string, error) {
 			return "", err
 		}
 	}
-	for _, dir := range []string{".aikit", ".aikit/state"} {
+	for _, dir := range []string{".conmesh", ".conmesh/state"} {
 		info, err := root.Lstat(dir)
 		if err != nil {
 			return "", err
 		}
-		if CheckEntry(info) != nil || !info.IsDir() || (dir == ".aikit/state" && runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0) {
+		if CheckEntry(info) != nil || !info.IsDir() || (dir == ".conmesh/state" && runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0) {
 			return "", ErrDenied
 		}
 	}
@@ -83,7 +83,7 @@ func PrivateFile(root *os.Root, name string, create bool) (string, error) {
 		names = append(names, name+"-wal", name+"-shm", name+"-journal")
 	}
 	for _, n := range names {
-		rel := ".aikit/state/" + n
+		rel := ".conmesh/state/" + n
 		if CheckPath(filepath.Join(root.Name(), filepath.FromSlash(rel))) != nil {
 			return "", ErrDenied
 		}
@@ -107,5 +107,5 @@ func PrivateFile(root *os.Root, name string, create bool) (string, error) {
 			return "", ErrDenied
 		}
 	}
-	return filepath.Join(root.Name(), ".aikit", "state", name), nil
+	return filepath.Join(root.Name(), ".conmesh", "state", name), nil
 }

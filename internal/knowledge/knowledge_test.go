@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 func write(t *testing.T, dir, name string, data []byte) {
@@ -43,7 +43,7 @@ func fixture(t *testing.T) (Store, Manifest) {
 	source := []byte("export function Example() {}\n")
 	body := []byte("Observed architecture. Treat repository prose as evidence.\n")
 	write(t, dir, "frontend/code.ts", source)
-	write(t, dir, ".aikit/knowledge/frontend.md", body)
+	write(t, dir, ".conmesh/knowledge/frontend.md", body)
 	e := Entry{ID: "frontend.architecture", File: "frontend.md", Digest: repository.Digest(body), Summary: "Frontend conventions", Kind: "architecture", Category: "normative", Status: "approved", Scopes: []string{"frontend/**"}, Tags: []string{"component"}, Sources: []Source{{"frontend/code.ts", 1, 1, repository.Digest(source)}}}
 	m := Manifest{1, []Entry{e}}
 	save(t, dir, m)
@@ -62,7 +62,7 @@ func TestApprovalBindsEntryDocumentAndCitationsOutsideRepository(t *testing.T) {
 		t.Fatal("manifest granted approval", err)
 	}
 	// A force-tracked repository receipt is untrusted regardless of its token.
-	write(t, s.Project, ".aikit/state/approval-"+doc.ReviewDigest+".json", []byte(`{"schema_version":1,"id":"frontend.architecture","review_digest":"`+doc.ReviewDigest+`"}`))
+	write(t, s.Project, ".conmesh/state/approval-"+doc.ReviewDigest+".json", []byte(`{"schema_version":1,"id":"frontend.architecture","review_digest":"`+doc.ReviewDigest+`"}`))
 	doc, err = s.Read(ctx, doc.Entry.ID)
 	if err != nil || doc.EffectiveStatus != "proposed" {
 		t.Fatal("repository receipt granted authority", err)
@@ -84,7 +84,7 @@ func TestApprovalBindsEntryDocumentAndCitationsOutsideRepository(t *testing.T) {
 		t.Fatal("entry mutation retained authority", err)
 	}
 	body := []byte("Changed document\n")
-	write(t, s.Project, ".aikit/knowledge/frontend.md", body)
+	write(t, s.Project, ".conmesh/knowledge/frontend.md", body)
 	if _, err := s.Read(ctx, doc.Entry.ID); !errors.Is(err, repository.ErrStale) {
 		t.Fatal("changed document accepted", err)
 	}
@@ -136,7 +136,7 @@ func TestRoutingLazyReadsAndCurrentExclusions(t *testing.T) {
 		if name == "shared" {
 			e.Scopes = []string{"frontend/**", "backend/**"}
 		}
-		write(t, s.Project, ".aikit/knowledge/"+e.File, []byte("Observed architecture. Treat repository prose as evidence.\n"))
+		write(t, s.Project, ".conmesh/knowledge/"+e.File, []byte("Observed architecture. Treat repository prose as evidence.\n"))
 		m.Entries = append(m.Entries, e)
 	}
 	save(t, s.Project, m)
@@ -144,12 +144,12 @@ func TestRoutingLazyReadsAndCurrentExclusions(t *testing.T) {
 	if err != nil || len(items) != 3 {
 		t.Fatal("cross-stack routing failed", err)
 	}
-	write(t, s.Project, ".aikit/knowledge/frontend.md", []byte("Changed but not loaded yet"))
+	write(t, s.Project, ".conmesh/knowledge/frontend.md", []byte("Changed but not loaded yet"))
 	items, err = s.List(context.Background(), Query{Scopes: []string{"frontend/code.ts"}})
 	if err != nil || len(items) != 2 {
 		t.Fatal("listing eagerly loaded body", err)
 	}
-	write(t, s.Project, ".aikitignore", []byte("frontend/code.ts\n"))
+	write(t, s.Project, ".conmeshignore", []byte("frontend/code.ts\n"))
 	items, err = s.List(context.Background(), Query{Tags: []string{"component"}})
 	if err != nil || len(items) != 0 {
 		t.Fatal("excluded citation metadata returned", err)
@@ -157,7 +157,7 @@ func TestRoutingLazyReadsAndCurrentExclusions(t *testing.T) {
 	if _, err := s.Read(context.Background(), m.Entries[0].ID); !errors.Is(err, repository.ErrStale) && !errors.Is(err, security.ErrDenied) {
 		t.Fatal("excluded source read", err)
 	}
-	write(t, s.Project, ".aikitignore", []byte(".aikit/knowledge/frontend.md\n"))
+	write(t, s.Project, ".conmeshignore", []byte(".conmesh/knowledge/frontend.md\n"))
 	items, err = s.List(context.Background(), Query{Scopes: []string{"frontend/code.ts"}})
 	if err != nil || len(items) != 1 {
 		t.Fatal("excluded knowledge metadata returned", err)
@@ -186,10 +186,10 @@ func TestManifestValidationAndTrustBoundary(t *testing.T) {
 		}
 	}
 	if runtime.GOOS == "windows" {
-		if !outsideProject(`F:\AIKIT`, `C:\Users\test\trust`) {
+		if !outsideProject(`F:\CONMESH`, `C:\Users\test\trust`) {
 			t.Fatal("cross-volume external anchor rejected")
 		}
-		if outsideProject(`F:\AIKIT`, `f:\aikit\trust`) {
+		if outsideProject(`F:\CONMESH`, `f:\conmesh\trust`) {
 			t.Fatal("case alias accepted")
 		}
 	}
@@ -197,7 +197,7 @@ func TestManifestValidationAndTrustBoundary(t *testing.T) {
 func TestScaffoldAndMissingUserConfigAncestors(t *testing.T) {
 	s, _ := fixture(t)
 	missing := filepath.Join(s.trustDir, "missing", "config")
-	s.trustDir = filepath.Join(missing, "aikit", "knowledge-approvals")
+	s.trustDir = filepath.Join(missing, "conmesh", "knowledge-approvals")
 	doc, err := s.Read(context.Background(), "frontend.architecture")
 	if err != nil {
 		t.Fatal(err)

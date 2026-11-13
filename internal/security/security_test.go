@@ -36,7 +36,7 @@ func TestPortablePathValidation(t *testing.T) {
 }
 
 func TestHardDenyAndSensitiveContent(t *testing.T) {
-	for _, name := range []string{".env.example", "a/ID_ECDSA", "id_dsa", "a/key.PEM", "node_modules/code.ts", ".aikit/state/index.sqlite", "creds/service-account.json", "api_key=longSyntheticValue123456.ts"} {
+	for _, name := range []string{".env.example", "a/ID_ECDSA", "id_dsa", "a/key.PEM", "node_modules/code.ts", ".conmesh/state/index.sqlite", "creds/service-account.json", "api_key=longSyntheticValue123456.ts"} {
 		if !HardDenied(name, false) {
 			t.Errorf("hard deny missed: %q", name)
 		}
@@ -80,14 +80,14 @@ func policyFixture(t *testing.T, files map[string]string) *Policy {
 
 func TestIgnoreFamiliesCannotUndoEachOther(t *testing.T) {
 	for _, files := range []map[string]string{
-		{".gitignore": "private.md\n", ".aikitignore": "!private.md\n"},
-		{".gitignore": "!private.md\n", ".aikitignore": "private.md\n"},
+		{".gitignore": "private.md\n", ".conmeshignore": "!private.md\n"},
+		{".gitignore": "!private.md\n", ".conmeshignore": "private.md\n"},
 	} {
 		if !policyFixture(t, files).Denied("private.md", false) {
 			t.Fatal("independent ignore family was negated")
 		}
 	}
-	p := policyFixture(t, map[string]string{".gitignore": "*.md\n!public.md\n!.env\n", ".aikitignore": "!.env\n"})
+	p := policyFixture(t, map[string]string{".gitignore": "*.md\n!public.md\n!.env\n", ".conmeshignore": "!.env\n"})
 	if p.Denied("public.md", false) || !p.Denied("private.md", false) || !p.Denied(".env", false) {
 		t.Fatal("negation or hard deny precedence incorrect")
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/index"
 )
 
 type terminal struct{ live, color bool }

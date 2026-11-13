@@ -13,10 +13,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 func fixture(t *testing.T, enabled bool, files map[string]string) (*Core, string) {
@@ -89,22 +89,22 @@ func TestOptInAndReadOnlyAbsent(t *testing.T) {
 		if !errors.Is(err, want) {
 			t.Fatal("wrong missing index error", err)
 		}
-		if _, err := os.Stat(filepath.Join(dir, ".aikit", "state")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(dir, ".conmesh", "state")); !os.IsNotExist(err) {
 			t.Fatal("read-only API created state")
 		}
-		if err := os.Mkdir(filepath.Join(dir, ".aikit", "state"), 0700); err != nil {
+		if err := os.Mkdir(filepath.Join(dir, ".conmesh", "state"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := c.Status(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := os.Stat(filepath.Join(dir, ".aikit", "state", "index.sqlite")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(dir, ".conmesh", "state", "index.sqlite")); !os.IsNotExist(err) {
 			t.Fatal("status created absent database")
 		}
 		if _, err := c.Search(context.Background(), Query{Text: "hello"}); !errors.Is(err, want) {
 			t.Fatal("query accepted absent database", err)
 		}
-		if _, err := os.Stat(filepath.Join(dir, ".aikit", "state", "index.sqlite")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(dir, ".conmesh", "state", "index.sqlite")); !os.IsNotExist(err) {
 			t.Fatal("search created absent database")
 		}
 		if !enabled {
@@ -179,12 +179,12 @@ func TestExclusionsAcrossPersistenceAndRetrieval(t *testing.T) {
 	native(t)
 	const marker = "forbiddenfixtureword"
 	files := map[string]string{
-		".gitignore": "ignored/\nnested/*.ts\n", ".aikitignore": "own/\n!ignored/\n",
-		"nested/.gitignore": "!allowed.ts\n", "nested/.aikitignore": "private.ts\n",
+		".gitignore": "ignored/\nnested/*.ts\n", ".conmeshignore": "own/\n!ignored/\n",
+		"nested/.gitignore": "!allowed.ts\n", "nested/.conmeshignore": "private.ts\n",
 		"ignored/escape/.gitignore": "!code.ts\n", "ignored/escape/code.ts": "export const Hidden = '" + marker + "';",
 		"own/code.ts": "export const Hidden = '" + marker + "';", "nested/blocked.ts": "export const Hidden = '" + marker + "';",
 		"nested/private.ts": "export const Hidden = '" + marker + "';", ".env": "" + marker,
-		"a/KEY.PEM": marker, "credentials/settings.json": marker, ".aikit/state/leak.txt": marker,
+		"a/KEY.PEM": marker, "credentials/settings.json": marker, ".conmesh/state/leak.txt": marker,
 		"secret.ts":                           "export const token = '" + marker + "'; // api_key=longSyntheticValue123456\n",
 		"api_key=longSyntheticValue123456.ts": "export const Hidden = '" + marker + "';",
 		"bad.bin":                             "\x00" + marker, "big.txt": strings.Repeat("x", repository.MaxFileBytes+1),
@@ -227,7 +227,7 @@ func TestExclusionsAcrossPersistenceAndRetrieval(t *testing.T) {
 		rows.Close()
 	}
 	db.Close()
-	write(t, dir, ".aikitignore", "own/\nnested/allowed.ts\n")
+	write(t, dir, ".conmeshignore", "own/\nnested/allowed.ts\n")
 	if _, err := c.FindSymbol(context.Background(), Query{Text: "Allowed"}); !errors.Is(err, repository.ErrStale) {
 		t.Fatal("new ignore not checked for symbols", err)
 	}
@@ -269,7 +269,7 @@ func TestMidRunPolicyAndCancellationRollback(t *testing.T) {
 	once := sync.Once{}
 	_, err = c.Index(context.Background(), func(p Progress) {
 		if p.Processed > 0 {
-			once.Do(func() { write(t, dir, ".aikitignore", "*.ts\n") })
+			once.Do(func() { write(t, dir, ".conmeshignore", "*.ts\n") })
 		}
 	})
 	if err != nil {
@@ -336,7 +336,7 @@ func TestQueriesBoundedAndConcurrent(t *testing.T) {
 
 func TestUnsafeAndIncompatibleState(t *testing.T) {
 	c, dir := fixture(t, true, nil)
-	state := filepath.Join(dir, ".aikit", "state")
+	state := filepath.Join(dir, ".conmesh", "state")
 	if err := os.Mkdir(state, 0700); err != nil {
 		t.Fatal(err)
 	}

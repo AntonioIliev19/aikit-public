@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/config"
 )
 
 func physicalTemp(t *testing.T) string {
@@ -54,11 +54,11 @@ func sourceFixture(t *testing.T, id, version string) string {
 	return dir
 }
 func installed(m *Manager, id string) string {
-	return filepath.Join(m.Project, ".aikit", "packages", "skills", id)
+	return filepath.Join(m.Project, ".conmesh", "packages", "skills", id)
 }
 func stateBytes(t *testing.T, m *Manager) []byte {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(m.Project, ".aikit", "packages", "lock.json"))
+	data, err := os.ReadFile(filepath.Join(m.Project, ".conmesh", "packages", "lock.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestLifecycleScopesAndOverrides(t *testing.T) {
 	if !items[0].Effective || items[0].Scope != "project" || items[1].ShadowedBy != "project" {
 		t.Fatal("project/global precedence incorrect")
 	}
-	override := filepath.Join(m.Project, ".aikit", "overrides", "skills", "sample")
+	override := filepath.Join(m.Project, ".conmesh", "overrides", "skills", "sample")
 	writeFixture(t, override, "sample", "skill", "local", "User-owned override.")
 	items, err = m.List(ctx, "skill", "")
 	if err != nil || len(items) != 3 || items[0].Scope != "override" || !items[0].Effective || items[1].ShadowedBy != "override" || items[2].ShadowedBy != "override" {
@@ -181,7 +181,7 @@ func TestOwnedContentPreserved(t *testing.T) {
 		})
 	}
 	m := newManager(t)
-	store := filepath.Join(m.Project, ".aikit", "packages")
+	store := filepath.Join(m.Project, ".conmesh", "packages")
 	os.MkdirAll(store, 0700)
 	os.WriteFile(filepath.Join(store, "handwritten.txt"), []byte("User-owned."), 0600)
 	if _, err := m.Add(ctx, "skill", sourceFixture(t, "sample", "1"), "", "project", true); err == nil {
@@ -245,7 +245,7 @@ func TestMalformedLockAndUnownedDirectory(t *testing.T) {
 			if _, err := m.Add(ctx, "skill", src, "", "project", true); err != nil {
 				t.Fatal(err)
 			}
-			lockPath := filepath.Join(m.Project, ".aikit", "packages", "lock.json")
+			lockPath := filepath.Join(m.Project, ".conmesh", "packages", "lock.json")
 			data := stateBytes(t, m)
 			switch failure {
 			case "schema":
@@ -272,7 +272,7 @@ func TestSafeSourceFilteringAndLimits(t *testing.T) {
 	ctx := context.Background()
 	m := newManager(t)
 	src := sourceFixture(t, "sample", "1")
-	for name, data := range map[string]string{".env.example": "fixture", "private.md": "ignored", ".gitignore": "private.md\n", ".aikitignore": "!private.md\n", "credentials.json": `{"password":"longSyntheticValue123456"}`} {
+	for name, data := range map[string]string{".env.example": "fixture", "private.md": "ignored", ".gitignore": "private.md\n", ".conmeshignore": "!private.md\n", "credentials.json": `{"password":"longSyntheticValue123456"}`} {
 		os.WriteFile(filepath.Join(src, name), []byte(data), 0600)
 	}
 	result, err := m.Add(ctx, "skill", src, "", "project", true)
@@ -316,7 +316,7 @@ func TestSourceAndDestinationLinks(t *testing.T) {
 	}
 	os.Remove(filepath.Join(src, "link.md"))
 	outside := physicalTemp(t)
-	os.Symlink(outside, filepath.Join(m.Project, ".aikit", "packages"))
+	os.Symlink(outside, filepath.Join(m.Project, ".conmesh", "packages"))
 	if _, err := m.Add(ctx, "skill", src, "", "project", true); err == nil {
 		t.Fatal("destination symlink accepted")
 	}

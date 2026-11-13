@@ -9,12 +9,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/embeddings"
-	"github.com/AntonioIliev19/aikit-public/internal/index"
-	"github.com/AntonioIliev19/aikit-public/internal/knowledge"
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/embeddings"
+	"github.com/AntonioIliev19/conmesh/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/knowledge"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -145,22 +145,22 @@ func New(project, version string) (*sdk.Server, error) {
 	if err != nil {
 		return nil, errors.New("MCP project root unavailable")
 	}
-	server := sdk.NewServer(&sdk.Implementation{Name: "aikit", Version: version}, nil)
+	server := sdk.NewServer(&sdk.Implementation{Name: "conmesh", Version: version}, nil)
 	addKnowledgeTools(server, project)
 	schema := map[string]any{"type": "object", "additionalProperties": false, "required": []string{"query"}, "properties": map[string]any{"query": map[string]any{"type": "string", "minLength": 1, "maxLength": 256}, "scope": map[string]any{"type": "string", "maxLength": 4096}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 50}}}
-	for _, name := range []string{"aikit_search_codebase", "aikit_find_symbol", "aikit_find_reference_candidates", "aikit_index_status"} {
+	for _, name := range []string{"conmesh_search_codebase", "conmesh_find_symbol", "conmesh_find_reference_candidates", "conmesh_index_status"} {
 		input := any(schema)
-		if name == "aikit_search_codebase" {
+		if name == "conmesh_search_codebase" {
 			input = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"query"}, "properties": map[string]any{"query": map[string]any{"type": "string", "minLength": 1, "maxLength": 256}, "scope": map[string]any{"type": "string", "maxLength": 4096}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 50}, "semantic": map[string]any{"type": "boolean"}}}
 		}
 		description := "Search authorized indexed code; returned files are digest-checked; additions elsewhere may require reindexing."
-		if name == "aikit_find_symbol" {
+		if name == "conmesh_find_symbol" {
 			description = "Find exact indexed symbol names with authorized source evidence."
 		}
-		if name == "aikit_find_reference_candidates" {
+		if name == "conmesh_find_reference_candidates" {
 			description = "Find approximate lexical reference candidates, including possible declarations; no LSP, type resolution or completeness guarantee."
 		}
-		if name == "aikit_index_status" {
+		if name == "conmesh_index_status" {
 			input = map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{}}
 			description = "Read last committed index counts and timestamp; does not scan for repository freshness."
 		}
@@ -170,11 +170,11 @@ func New(project, version string) (*sdk.Server, error) {
 			if len(req.Params.Arguments) > 8192 {
 				return result(response{Error: "INVALID_ARGUMENTS"}), nil
 			}
-			args, argErr := decodeArgs(req.Params.Arguments, name == "aikit_index_status")
-			if argErr != nil || args.hasSemantic && name != "aikit_search_codebase" {
+			args, argErr := decodeArgs(req.Params.Arguments, name == "conmesh_index_status")
+			if argErr != nil || args.hasSemantic && name != "conmesh_search_codebase" {
 				return result(response{Error: "INVALID_ARGUMENTS"}), nil
 			}
-			if name == "aikit_index_status" {
+			if name == "conmesh_index_status" {
 				status, err := core.Status(ctx)
 				if err != nil {
 					return result(response{Error: errorCode(err)}), nil
@@ -184,7 +184,7 @@ func New(project, version string) (*sdk.Server, error) {
 			query := index.Query{Text: args.Query, Scope: args.Scope, Limit: args.Limit}
 			var evidence []index.Evidence
 			var err error
-			if name == "aikit_search_codebase" {
+			if name == "conmesh_search_codebase" {
 				if args.Semantic {
 					v, err := core.Hybrid(ctx, query)
 					if err != nil {
@@ -193,7 +193,7 @@ func New(project, version string) (*sdk.Server, error) {
 					return result(response{Hybrid: &v, Freshness: "authorized_returned_source_digests_checked_bounded_candidates"}), nil
 				}
 				evidence, err = core.Search(ctx, query)
-			} else if name == "aikit_find_reference_candidates" {
+			} else if name == "conmesh_find_reference_candidates" {
 				evidence, err = core.FindReferenceCandidates(ctx, query)
 			} else {
 				evidence, err = core.FindSymbol(ctx, query)

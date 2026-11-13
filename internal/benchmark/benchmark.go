@@ -15,10 +15,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/embeddings"
-	"github.com/AntonioIliev19/aikit-public/internal/index"
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/embeddings"
+	"github.com/AntonioIliev19/conmesh/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
 )
 
 type Options struct {
@@ -113,9 +113,9 @@ func Fixture(root string, files int) ([]GroundTruth, int64, error) {
 }
 func Source(i int) (string, string) {
 	if i%2 == 0 {
-		return fmt.Sprintf("frontend/feature%05d.ts", i), fmt.Sprintf("// Original AIKIT synthetic benchmark fixture.\nexport class Feature%d {\n  refreshSession(): string { return 'session%d'; }\n  render(): string { return this.refreshSession(); }\n}\n", i, i)
+		return fmt.Sprintf("frontend/feature%05d.ts", i), fmt.Sprintf("// Original CONMESH synthetic benchmark fixture.\nexport class Feature%d {\n  refreshSession(): string { return 'session%d'; }\n  render(): string { return this.refreshSession(); }\n}\n", i, i)
 	}
-	return fmt.Sprintf("backend/Feature%05d.cs", i), fmt.Sprintf("// Original AIKIT synthetic benchmark fixture.\nnamespace Synthetic;\npublic class Feature%d {\n public string RefreshSession() { return \"session%d\"; }\n public string Endpoint() { return RefreshSession(); }\n}\n", i, i)
+	return fmt.Sprintf("backend/Feature%05d.cs", i), fmt.Sprintf("// Original CONMESH synthetic benchmark fixture.\nnamespace Synthetic;\npublic class Feature%d {\n public string RefreshSession() { return \"session%d\"; }\n public string Endpoint() { return RefreshSession(); }\n}\n", i, i)
 }
 
 // Score evaluates unique paths; duplicate chunks cannot inflate retrieval quality.
@@ -179,7 +179,7 @@ func summarize(samples []Sample) []Summary {
 }
 func indexSize(root string) int64 {
 	var total int64
-	filepath.WalkDir(filepath.Join(root, ".aikit", "state"), func(path string, d os.DirEntry, err error) error {
+	filepath.WalkDir(filepath.Join(root, ".conmesh", "state"), func(path string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {
 			if info, e := d.Info(); e == nil {
 				total += info.Size()
@@ -191,7 +191,7 @@ func indexSize(root string) int64 {
 }
 
 func Run(ctx context.Context, o Options) (Report, error) {
-	report := Report{Schema: 1, Started: time.Now().UTC().Format(time.RFC3339), Commit: o.Commit, Go: runtime.Version(), OS: runtime.GOOS, Arch: runtime.GOARCH, LogicalCPUs: runtime.NumCPU(), Mode: o.Mode, Profile: o.Profile, Files: o.Files, Runs: o.Runs, External: map[string]string{"real_harness_sessions": "unrun: Claude/model sessions unavailable", "llm_tokens_cost": "unrun: no reliable harness telemetry", "laptop_16gb": "unrun: desktop host only", "laptop_32gb": "unrun: desktop host only", "baseline_agent_task_success": "unrun: no controlled harness experiment", "real_model_hybrid": "unrun: no opted-in model configured"}, Caveats: []string{"Synthetic original corpus, not an enterprise repository or a representative quality benchmark.", "Index also contains one allowed .aikit/config.yaml file; files/source_bytes describe generated TS/C# only.", "Full index uses fresh databases; OS file caches are not flushed. Cold-process query starts a new CLI process, not a cold OS cache.", "Warm queries reuse the benchmark process, but Core opens SQLite per request. Operations run full, unchanged, changed, added, deleted, then queries.", "p50/p95 use nearest-rank empirical percentiles; small repetition counts have limited statistical power.", "Precision uses fixed denominator k=5; ground truth is one exact class path per query. No task-success, token-saving or natural-language generalization claim.", "Peak RSS is the benchmark driver lifetime high-water mark, includes fixture setup and excludes separately launched CLI children; Go heap is reported separately."}}
+	report := Report{Schema: 1, Started: time.Now().UTC().Format(time.RFC3339), Commit: o.Commit, Go: runtime.Version(), OS: runtime.GOOS, Arch: runtime.GOARCH, LogicalCPUs: runtime.NumCPU(), Mode: o.Mode, Profile: o.Profile, Files: o.Files, Runs: o.Runs, External: map[string]string{"real_harness_sessions": "unrun: Claude/model sessions unavailable", "llm_tokens_cost": "unrun: no reliable harness telemetry", "laptop_16gb": "unrun: desktop host only", "laptop_32gb": "unrun: desktop host only", "baseline_agent_task_success": "unrun: no controlled harness experiment", "real_model_hybrid": "unrun: no opted-in model configured"}, Caveats: []string{"Synthetic original corpus, not an enterprise repository or a representative quality benchmark.", "Index also contains one allowed .conmesh/config.yaml file; files/source_bytes describe generated TS/C# only.", "Full index uses fresh databases; OS file caches are not flushed. Cold-process query starts a new CLI process, not a cold OS cache.", "Warm queries reuse the benchmark process, but Core opens SQLite per request. Operations run full, unchanged, changed, added, deleted, then queries.", "p50/p95 use nearest-rank empirical percentiles; small repetition counts have limited statistical power.", "Precision uses fixed denominator k=5; ground truth is one exact class path per query. No task-success, token-saving or natural-language generalization claim.", "Peak RSS is the benchmark driver lifetime high-water mark, includes fixture setup and excludes separately launched CLI children; Go heap is reported separately."}}
 	report.CLIHash, report.SourceHash, report.Compiler, report.CGO = o.CLIHash, o.SourceHash, o.Compiler, o.CGO
 	if !parser.Available() {
 		return report, errors.New("native parser required: build benchmark with CGO_ENABLED=1")
@@ -218,7 +218,7 @@ func Run(ctx context.Context, o Options) (Report, error) {
 		if err := ctx.Err(); err != nil {
 			return report, err
 		}
-		root, err := os.MkdirTemp("", "aikit-benchmark-")
+		root, err := os.MkdirTemp("", "conmesh-benchmark-")
 		if err != nil {
 			return report, err
 		}

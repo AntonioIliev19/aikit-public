@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 const MaxGitStagingBytes int64 = 128 << 20

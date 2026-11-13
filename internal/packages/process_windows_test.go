@@ -16,7 +16,7 @@ func TestWindowsSuspendedBeforeJobAttachment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestProcessChild$")
-	cmd.Env = append(os.Environ(), "AIKIT_PROCESS_HELPER=parent", "AIKIT_PROCESS_GROWTH="+path)
+	cmd.Env = append(os.Environ(), "CONMESH_PROCESS_HELPER=parent", "CONMESH_PROCESS_GROWTH="+path)
 	cmd.WaitDelay = time.Second
 	before := false
 	err := runContainedBeforeAttach(ctx, cmd, func() {

@@ -1,8 +1,8 @@
 # Local ConMesh index state and caches
-.aikit/state/
-.aikit/cache/
-.aikit/**/*.sqlite
-.aikit/**/*.sqlite-*
+.conmesh/state/
+.conmesh/cache/
+.conmesh/**/*.sqlite
+.conmesh/**/*.sqlite-*
 .claude/settings.local.json
 # Go outputs
 /conmesh
@@ -20,3 +20,8 @@
 .env
 .env.*
 !.env.example
+
+# State from older installations
+/.aikit/
+/aikit.exe
+/aikit

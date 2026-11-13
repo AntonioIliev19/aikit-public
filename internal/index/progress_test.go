@@ -22,7 +22,7 @@ func TestProgressAllOutcomes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, dir := fixture(t, true, tc.files)
-			write(t, dir, ".aikitignore", ".aikit/\n.aikitignore\n")
+			write(t, dir, ".conmeshignore", ".conmesh/\n.conmeshignore\n")
 			for run := 0; run < 2; run++ {
 				var events []Progress
 				p, err := c.Index(context.Background(), func(p Progress) { events = append(events, p) })
@@ -57,7 +57,7 @@ func TestProgressAllOutcomes(t *testing.T) {
 func TestProgressFailureDuringFinalization(t *testing.T) {
 	native(t)
 	c, dir := fixture(t, true, map[string]string{"a.ts": "export const A = 1;"})
-	write(t, dir, ".aikitignore", ".aikit/\n.aikitignore\n")
+	write(t, dir, ".conmeshignore", ".conmesh/\n.conmeshignore\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var last Progress

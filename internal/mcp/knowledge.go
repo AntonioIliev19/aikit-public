@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/knowledge"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/knowledge"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -19,11 +19,11 @@ type knowledgeArgs struct {
 }
 
 func addKnowledgeTools(server *sdk.Server, project string) {
-	for _, name := range []string{"aikit_get_architecture", "aikit_get_patterns", "aikit_get_examples", "aikit_get_knowledge"} {
+	for _, name := range []string{"conmesh_get_architecture", "conmesh_get_patterns", "conmesh_get_examples", "conmesh_get_knowledge"} {
 		properties := map[string]any{"scopes": map[string]any{"type": "array", "maxItems": 16, "items": map[string]any{"type": "string", "maxLength": 4096}}, "tags": map[string]any{"type": "array", "maxItems": 16, "items": map[string]any{"type": "string", "maxLength": 64}}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 50}}
 		input := map[string]any{"type": "object", "additionalProperties": false, "properties": properties}
-		description := "List scoped proposed knowledge summaries lazily; document/citation freshness and effective approval are checked by aikit_get_knowledge."
-		if name == "aikit_get_knowledge" {
+		description := "List scoped proposed knowledge summaries lazily; document/citation freshness and effective approval are checked by conmesh_get_knowledge."
+		if name == "conmesh_get_knowledge" {
 			input = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"id"}, "properties": map[string]any{"id": map[string]any{"type": "string", "minLength": 1, "maxLength": 64}}}
 			description = "Read one bounded authorized knowledge document with current source citations, review digest and user-local effective approval status."
 		}
@@ -45,7 +45,7 @@ func addKnowledgeTools(server *sdk.Server, project string) {
 				}
 			}
 			store := knowledge.Store{Project: project}
-			if name == "aikit_get_knowledge" {
+			if name == "conmesh_get_knowledge" {
 				if len(fields) != 1 || args.ID == "" {
 					return result(response{Error: "INVALID_ARGUMENTS"}), nil
 				}
@@ -62,10 +62,10 @@ func addKnowledgeTools(server *sdk.Server, project string) {
 				return result(response{Error: "INVALID_ARGUMENTS"}), nil
 			}
 			kind := "architecture"
-			if name == "aikit_get_patterns" {
+			if name == "conmesh_get_patterns" {
 				kind = "pattern"
 			}
-			if name == "aikit_get_examples" {
+			if name == "conmesh_get_examples" {
 				kind = "example"
 			}
 			items, err := store.List(ctx, knowledge.Query{Scopes: args.Scopes, Tags: args.Tags, Limit: args.Limit, Kind: kind})

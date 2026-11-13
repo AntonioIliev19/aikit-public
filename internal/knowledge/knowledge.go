@@ -13,12 +13,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
-const ManifestPath = ".aikit/knowledge/manifest.yaml"
+const ManifestPath = ".conmesh/knowledge/manifest.yaml"
 const MaxManifestBytes = 128 << 10
 const MaxDocumentBytes = 16 << 10
 const MaxEntries = 128
@@ -119,7 +119,7 @@ func (e Entry) validate() error {
 	if security.ValidateID(e.ID) != nil || security.ValidateRelative(e.File) != nil || !strings.HasSuffix(e.File, ".md") || len(e.File) > 256 || !DigestOK(e.Digest) || !textOK(e.Summary, 512) || !kindOK(e.Kind) || (e.Category != "observed" && e.Category != "normative") || (e.Status != "proposed" && e.Status != "approved") || len(e.Scopes) == 0 || len(e.Scopes) > 16 || !listOK(e.Tags) || !listOK(e.Languages) || !listOK(e.Frameworks) || len(e.Sources) == 0 || len(e.Sources) > 16 {
 		return ErrManifest
 	}
-	if security.HardDenied(".aikit/knowledge/"+e.File, false) {
+	if security.HardDenied(".conmesh/knowledge/"+e.File, false) {
 		return security.ErrDenied
 	}
 	for _, scope := range e.Scopes {
@@ -219,7 +219,7 @@ func (s Store) List(ctx context.Context, q Query) ([]Summary, error) {
 		if !match {
 			continue
 		}
-		if repository.AuthorizePath(root, ".aikit/knowledge/"+e.File) != nil {
+		if repository.AuthorizePath(root, ".conmesh/knowledge/"+e.File) != nil {
 			continue
 		}
 		allowed := true
@@ -263,7 +263,7 @@ func (s Store) Read(ctx context.Context, id string) (Document, error) {
 		return Document{}, security.ErrDenied
 	}
 	defer root.Close()
-	data, digest, err := repository.AuthorizedRead(root, ".aikit/knowledge/"+e.File)
+	data, digest, err := repository.AuthorizedRead(root, ".conmesh/knowledge/"+e.File)
 	if err != nil {
 		return Document{}, err
 	}
@@ -340,7 +340,7 @@ func (s Store) trust(create bool) (*os.Root, string, error) {
 		if err != nil {
 			return nil, "", security.ErrDenied
 		}
-		dir = filepath.Join(base, "aikit", "knowledge-approvals")
+		dir = filepath.Join(base, "conmesh", "knowledge-approvals")
 	}
 	abs, err := canonicalPrefix(dir)
 	if err != nil || !outsideProject(project, abs) {

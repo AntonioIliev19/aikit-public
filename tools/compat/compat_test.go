@@ -19,7 +19,7 @@ func TestFTS5Persistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec("CREATE VIRTUAL TABLE docs USING fts5(content); INSERT INTO docs VALUES ('aikit bootstrap');"); err != nil {
+	if _, err = db.Exec("CREATE VIRTUAL TABLE docs USING fts5(content); INSERT INTO docs VALUES ('conmesh bootstrap');"); err != nil {
 		db.Close()
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestFTS5Persistence(t *testing.T) {
 
 // TestMain uses this test binary as the stdio server, avoiding external tools.
 func TestMain(m *testing.M) {
-	if os.Getenv("AIKIT_COMPAT_STDIO_SERVER") == "1" {
+	if os.Getenv("CONMESH_COMPAT_STDIO_SERVER") == "1" {
 		server := mcp.NewServer(&mcp.Implementation{Name: "phase0", Version: "dev"}, nil)
 		mcp.AddTool(server, &mcp.Tool{Name: "status", Description: "Read-only compatibility status"},
 			func(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, any, error) {
@@ -60,7 +60,7 @@ func TestMCPStdioRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0])
-	cmd.Env = append(os.Environ(), "AIKIT_COMPAT_STDIO_SERVER=1")
+	cmd.Env = append(os.Environ(), "CONMESH_COMPAT_STDIO_SERVER=1")
 	client := mcp.NewClient(&mcp.Implementation{Name: "phase0-client", Version: "dev"}, nil)
 	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
 	if err != nil {

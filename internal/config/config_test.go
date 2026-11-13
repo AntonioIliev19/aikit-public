@@ -40,8 +40,8 @@ func TestInitPreservesAndFindsConfig(t *testing.T) {
 func TestStrictConfig(t *testing.T) {
 	for _, data := range []string{`{"schema_version":99}`, `{"schema_version":1,"indexing":{"profile":"balanced"},"unknown":true}`, `{"schema_version":1,"indexing":{"profile":"balanced","semantic":true}}`, `{} {}`} {
 		dir := physicalTemp(t)
-		os.Mkdir(filepath.Join(dir, ".aikit"), 0700)
-		name := filepath.Join(dir, ".aikit", File)
+		os.Mkdir(filepath.Join(dir, ".conmesh"), 0700)
+		name := filepath.Join(dir, ".conmesh", File)
 		os.WriteFile(name, []byte(data), 0600)
 		if _, err := Load(dir); err == nil {
 			t.Fatal("invalid config accepted")
@@ -61,10 +61,26 @@ func TestStrictConfig(t *testing.T) {
 
 func TestInitRejectsLink(t *testing.T) {
 	dir, target := physicalTemp(t), physicalTemp(t)
-	if err := os.Symlink(target, filepath.Join(dir, ".aikit")); err != nil {
+	if err := os.Symlink(target, filepath.Join(dir, ".conmesh")); err != nil {
 		t.Skip("symlink privilege unavailable")
 	}
 	if _, _, err := Init(dir, Default()); err == nil {
 		t.Fatal("symlinked config accepted")
+	}
+}
+
+func TestLegacyProjectRequiresMigration(t *testing.T) {
+	dir := physicalTemp(t)
+	if err := os.Mkdir(filepath.Join(dir, ".aikit"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Init(dir, Default()); !errors.Is(err, errLegacyProject) {
+		t.Fatalf("Init returned %v", err)
+	}
+	if _, _, err := Find(dir); !errors.Is(err, errLegacyProject) {
+		t.Fatalf("Find returned %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".conmesh")); !os.IsNotExist(err) {
+		t.Fatalf("Init created new state: %v", err)
 	}
 }

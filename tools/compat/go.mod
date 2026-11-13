@@ -1,4 +1,4 @@
-module aikit-phase0-spike
+module conmesh-phase0-spike
 
 go 1.27.4
 

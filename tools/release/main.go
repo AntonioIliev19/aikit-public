@@ -19,8 +19,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
-	"github.com/AntonioIliev19/aikit-public/internal/update"
+	"github.com/AntonioIliev19/conmesh/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/update"
 )
 
 type module struct {
@@ -201,7 +201,7 @@ func inventory(out string) error {
 			relative = append(relative, filepath.ToSlash(rel))
 			fmt.Fprintf(&notices, "\n## %s %s — %s\n\n```text\n%s\n```\n", m.Path, m.Version, filepath.ToSlash(rel), data)
 		}
-		components = append(components, map[string]any{"type": "library", "bom-ref": m.Path + "@" + m.Version, "name": m.Path, "version": m.Version, "purl": "pkg:golang/" + m.Path + "@" + m.Version, "properties": []map[string]string{{"name": "go:module:h1", "value": m.Sum}, {"name": "aikit:license-files", "value": strings.Join(relative, ",")}}})
+		components = append(components, map[string]any{"type": "library", "bom-ref": m.Path + "@" + m.Version, "name": m.Path, "version": m.Version, "purl": "pkg:golang/" + m.Path + "@" + m.Version, "properties": []map[string]string{{"name": "go:module:h1", "value": m.Sum}, {"name": "conmesh:license-files", "value": strings.Join(relative, ",")}}})
 	}
 	goRootRaw, err := command("env", "GOROOT")
 	if err != nil {
@@ -222,7 +222,7 @@ func inventory(out string) error {
 		rel, _ := filepath.Rel(goRoot, file)
 		fmt.Fprintf(&notices, "\n## Go toolchain %s — %s\n\n```text\n%s\n```\n", runtime.Version(), filepath.ToSlash(rel), data)
 	}
-	sbom := map[string]any{"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "metadata": map[string]any{"component": map[string]string{"type": "application", "name": "ConMesh"}, "properties": []map[string]string{{"name": "aikit:scope", "value": "Complete Go module graph (includes build/test-only modules); native license texts accompany inventory; Go toolchain separately identified"}, {"name": "aikit:go-version", "value": runtime.Version()}}}, "components": components}
+	sbom := map[string]any{"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "metadata": map[string]any{"component": map[string]string{"type": "application", "name": "ConMesh"}, "properties": []map[string]string{{"name": "conmesh:scope", "value": "Complete Go module graph (includes build/test-only modules); native license texts accompany inventory; Go toolchain separately identified"}, {"name": "conmesh:go-version", "value": runtime.Version()}}}, "components": components}
 	data, _ := json.MarshalIndent(sbom, "", "  ")
 	if err = put(out, "sbom.cdx.json", append(data, '\n')); err != nil {
 		return err
@@ -290,7 +290,7 @@ func run() error {
 	target := filepath.Join(out, artifact)
 	flags := "-X main.version=" + version
 	if publicKey != "" {
-		flags += " -X github.com/AntonioIliev19/aikit-public/internal/update.ReleasePublicKey=" + publicKey
+		flags += " -X github.com/AntonioIliev19/conmesh/internal/update.ReleasePublicKey=" + publicKey
 	}
 	envRaw, err := command("env", "-json", "GOOS", "GOARCH", "CGO_ENABLED", "CC", "GOVERSION")
 	if err != nil {

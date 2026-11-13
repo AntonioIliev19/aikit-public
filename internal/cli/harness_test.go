@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/config"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("AIKIT_CLI_TEST_STDIO") == "1" {
+	if os.Getenv("CONMESH_CLI_TEST_STDIO") == "1" {
 		os.Exit(Run(os.Args[1:], os.Stdout, os.Stderr, "test"))
 	}
 	os.Exit(m.Run())
@@ -58,7 +58,7 @@ func TestCLIMCPStdioAndSyncCommands(t *testing.T) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "mcp", "serve", "--project", project)
 	cmd.Dir = project
-	cmd.Env = append(os.Environ(), "AIKIT_CLI_TEST_STDIO=1")
+	cmd.Env = append(os.Environ(), "CONMESH_CLI_TEST_STDIO=1")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	client := sdk.NewClient(&sdk.Implementation{Name: "CLI-integration-test", Version: "test"}, nil)
@@ -70,7 +70,7 @@ func TestCLIMCPStdioAndSyncCommands(t *testing.T) {
 	if err != nil || len(tools.Tools) != 8 {
 		t.Fatal("CLI did not expose tools", err)
 	}
-	response, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "aikit_index_status", Arguments: map[string]any{}})
+	response, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "conmesh_index_status", Arguments: map[string]any{}})
 	if err != nil || response.IsError {
 		t.Fatal("CLI status failed", err)
 	}
@@ -82,7 +82,7 @@ func TestCLIMCPStdioAndSyncCommands(t *testing.T) {
 	if stderr.Len() != 0 {
 		t.Fatal("unexpected CLI protocol diagnostics")
 	}
-	if _, err := os.Stat(filepath.Join(project, ".aikit/state/index.sqlite")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(project, ".conmesh/state/index.sqlite")); !os.IsNotExist(err) {
 		t.Fatal("CLI MCP created database")
 	}
 }

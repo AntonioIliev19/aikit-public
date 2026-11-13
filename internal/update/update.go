@@ -17,11 +17,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
-const Repository = "AntonioIliev19/aikit-public"
+const Repository = "AntonioIliev19/conmesh"
 const MaxArtifactBytes = 128 << 20
 
 // ReleasePublicKey is populated at reviewed build time with a base64 Ed25519 key.
@@ -134,13 +134,13 @@ func installRoot(executable string) (*os.Root, string, error) {
 		r.Close()
 		return nil, "", ErrInstall
 	}
-	if err = r.Mkdir(".aikit-update-lock", 0700); err != nil {
+	if err = r.Mkdir(".conmesh-update-lock", 0700); err != nil {
 		r.Close()
 		return nil, "", errors.New("update lock exists or install directory is not writable")
 	}
 	return r, name, nil
 }
-func unlock(r *os.Root) { r.Remove(".aikit-update-lock"); r.Close() }
+func unlock(r *os.Root) { r.Remove(".conmesh-update-lock"); r.Close() }
 func read(r *os.Root, name string) ([]byte, error) {
 	return security.ReadFileBounded(r, name, MaxArtifactBytes)
 }

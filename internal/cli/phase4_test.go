@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
 )
 
 func TestCLIResearchKnowledgeAndOptionalSemantic(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCLIResearchKnowledgeAndOptionalSemantic(t *testing.T) {
 			t.Fatal("Phase 4 CLI outcome mismatch", args[0], got, diag.String())
 		}
 	}
-	check([]string{"research-skill"}, 0, "name: aikit-repository-research")
+	check([]string{"research-skill"}, 0, "name: conmesh-repository-research")
 	check([]string{"init", "--index"}, 0, "Indexing enabled: true")
 	check([]string{"knowledge", "scaffold"}, 0, "Created empty")
 	check([]string{"knowledge", "scaffold"}, 1, "KNOWLEDGE_INVALID")

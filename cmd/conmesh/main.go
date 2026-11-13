@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/AntonioIliev19/aikit-public/internal/cli"
+	"github.com/AntonioIliev19/conmesh/internal/cli"
 )
 
 var version = "dev"

@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 const Schema = 1
@@ -88,7 +88,7 @@ func (m *Manager) base(scope string) (string, error) {
 		if _, err := config.Load(m.Project); err != nil {
 			return "", err
 		}
-		return filepath.Join(m.Project, ".aikit"), nil
+		return filepath.Join(m.Project, ".conmesh"), nil
 	case "global":
 		if m.Global == "" {
 			return "", errors.New("global data directory unavailable")
@@ -123,7 +123,7 @@ func acquire(root *os.Root) (func(), error) {
 	if err != nil {
 		return nil, errors.New("package store busy or interrupted; inspect mutation lock before retrying")
 	}
-	if _, err := f.WriteString("AIKIT package transaction\n"); err != nil {
+	if _, err := f.WriteString("CONMESH package transaction\n"); err != nil {
 		f.Close()
 		root.Remove(".packages-mutation.lock")
 		return nil, errors.New("cannot persist mutation lock")
@@ -643,7 +643,7 @@ func (m *Manager) List(ctx context.Context, kind, selectedScope string) ([]Item,
 	}
 	// Overrides are user-owned project directories, never modified by this manager.
 	if m.Project != "" && selectedScope != "global" {
-		base := filepath.Join(m.Project, ".aikit", "overrides", kind+"s")
+		base := filepath.Join(m.Project, ".conmesh", "overrides", kind+"s")
 		if err := security.CheckPath(base); err != nil {
 			return nil, err
 		}

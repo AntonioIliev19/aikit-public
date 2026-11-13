@@ -10,14 +10,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/AntonioIliev19/aikit-public/internal/embeddings"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/embeddings"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 const Schema = 1
 const File = "config.yaml"
 
-var ErrNoProject = errors.New("NO_PROJECT: run aikit init in the project root")
+var ErrNoProject = errors.New("NO_PROJECT: run conmesh init in the project root")
 
 type Indexing struct {
 	Enabled  bool   `json:"enabled"`
@@ -85,7 +85,16 @@ func GlobalDir() (string, error) {
 	if err != nil {
 		return "", errors.New("user data directory unavailable")
 	}
-	return filepath.Join(base, "aikit"), nil
+	return filepath.Join(base, "conmesh"), nil
+}
+
+var errLegacyProject = errors.New("legacy .aikit project detected; follow the ConMesh migration instructions")
+
+func checkLegacyProject(root *os.Root) error {
+	if _, err := root.Lstat(".aikit"); !errors.Is(err, fs.ErrNotExist) {
+		return errLegacyProject
+	}
+	return nil
 }
 
 // Init creates a new project config exclusively and preserves an existing one.
@@ -98,13 +107,18 @@ func Init(project string, requested Config) (Config, bool, error) {
 		return Config{}, false, security.ErrDenied
 	}
 	defer root.Close()
-	if err := security.CheckPath(filepath.Join(project, ".aikit", File)); err != nil {
+	if _, err := root.Lstat(".conmesh/" + File); errors.Is(err, fs.ErrNotExist) {
+		if err := checkLegacyProject(root); err != nil {
+			return Config{}, false, err
+		}
+	}
+	if err := security.CheckPath(filepath.Join(project, ".conmesh", File)); err != nil {
 		return Config{}, false, err
 	}
-	if err := root.MkdirAll(".aikit", 0700); err != nil {
+	if err := root.MkdirAll(".conmesh", 0700); err != nil {
 		return Config{}, false, errors.New("cannot create project data directory")
 	}
-	dir, err := root.OpenRoot(".aikit")
+	dir, err := root.OpenRoot(".conmesh")
 	if err != nil {
 		return Config{}, false, security.ErrDenied
 	}
@@ -129,7 +143,7 @@ func Init(project string, requested Config) (Config, bool, error) {
 }
 
 func Load(project string) (Config, error) {
-	name := filepath.Join(project, ".aikit", File)
+	name := filepath.Join(project, ".conmesh", File)
 	if err := security.CheckPath(name); err != nil {
 		return Config{}, err
 	}
@@ -138,14 +152,17 @@ func Load(project string) (Config, error) {
 		return Config{}, security.ErrDenied
 	}
 	defer root.Close()
-	info, err := root.Lstat(".aikit/" + File)
+	info, err := root.Lstat(".conmesh/" + File)
 	if errors.Is(err, fs.ErrNotExist) {
+		if err := checkLegacyProject(root); err != nil {
+			return Config{}, err
+		}
 		return Config{}, ErrNoProject
 	}
 	if err != nil || security.CheckEntry(info) != nil || info.IsDir() || info.Size() > 64<<10 {
 		return Config{}, security.ErrDenied
 	}
-	data, err := security.ReadFileBounded(root, ".aikit/"+File, 64<<10)
+	data, err := security.ReadFileBounded(root, ".conmesh/"+File, 64<<10)
 	if err != nil || len(data) > 64<<10 {
 		return Config{}, security.ErrDenied
 	}

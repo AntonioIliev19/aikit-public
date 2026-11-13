@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
 )
 
 func TestCLIIndexFlow(t *testing.T) {

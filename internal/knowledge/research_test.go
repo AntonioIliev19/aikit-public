@@ -38,7 +38,7 @@ func TestEmbeddedResearchManifestExample(t *testing.T) {
 		}
 		return []byte(body)
 	}
-	write(t, root, ".aikit/knowledge/frontend/architecture.md", codeBlock("markdown"))
+	write(t, root, ".conmesh/knowledge/frontend/architecture.md", codeBlock("markdown"))
 	write(t, root, "src/app.ts", codeBlock("typescript"))
 	write(t, root, ManifestPath, codeBlock("json"))
 

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AntonioIliev19/aikit-public/internal/knowledge"
+	"github.com/AntonioIliev19/conmesh/internal/knowledge"
 )
 
 func researchSkill() string { return knowledge.ResearchSkill }

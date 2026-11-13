@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 // All vectors in this file are mocked HTTP fixtures, not model-quality evidence.

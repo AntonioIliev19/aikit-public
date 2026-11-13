@@ -63,14 +63,14 @@ conmesh init --harness codex --index
 conmesh status
 ```
 
-`init` creates `.aikit/config.yaml`. `--harness codex` selects Codex and `--index`
+`init` creates `.conmesh/config.yaml`. `--harness codex` selects Codex and `--index`
 enables indexing in the settings. Use `--harness claude` for Claude Code or
 `--harness claude,codex` for both. For OpenCode, Cursor, or another local host,
 use `conmesh init --index`. If you only want package management, use `conmesh init`
 and stop here. `conmesh doctor` checks available runtime features.
 
 If the project is already initialized, `init` preserves its settings. Edit
-`.aikit/config.yaml` to set `indexing.enabled` to `true` and add `"codex"` to the
+`.conmesh/config.yaml` to set `indexing.enabled` to `true` and add `"codex"` to the
 `harnesses` array as needed. The file uses JSON syntax despite its extension.
 
 ### 2. Build the local index
@@ -98,7 +98,7 @@ Review the plan and any installed package instructions, then apply it.
 conmesh sync --trust
 ```
 
-Sync installs the shared `aikit-research` project skill. It also connects MCP
+Sync installs the shared `conmesh-research` project skill. It also connects MCP
 and installs a custom Research Agent for selected Codex and Claude Code
 integrations. For OpenCode, Cursor, or another host, set up the local ConMesh MCP
 server once in that tool. Configure it as a stdio server using the command `conmesh mcp serve` from the project root.
@@ -111,9 +111,9 @@ Send this message in your local project chat.
 Run ConMesh research
 ```
 
-You can also select `aikit-research` from your tool's skill picker when available.
+You can also select `conmesh-research` from your tool's skill picker when available.
 The skill asks your current agent to delegate to one local subagent. The worker
-checks the index, creates `.aikit/knowledge/manifest.yaml` if it is missing,
+checks the index, creates `.conmesh/knowledge/manifest.yaml` if it is missing,
 and registers and validates its proposed Markdown documents. It returns the
 results to the same chat. Your tool needs local subagent support with MCP and
 project write access. The session's model provider may receive selected source
@@ -159,6 +159,17 @@ go run ./cmd/conmesh doctor
 Use `-o conmesh` on Linux/macOS. `doctor` reports implementation status without
 scanning. Indexing requires explicit opt-in.
 
+## Moving from AIKIT
+
+ConMesh uses `.conmesh/`, `.conmeshignore`, and `CONMESH_AUTO_UPDATE_CHECK`.
+To keep project settings, run `conmesh init` after moving the old `.aikit/`
+directory outside the project, then copy its `config.yaml` into `.conmesh/`.
+Move your custom ignore rules into `.conmeshignore` before rebuilding the index.
+Run `conmesh sync --dry-run` to review the new integration. Remove old harness
+entries you no longer use and reinstall packages you want under the ConMesh
+package store. Keep the legacy directory as a backup for old knowledge and package
+state.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
@@ -181,4 +192,4 @@ Do not automatically vendor or copy external repositories. Verify source, licens
 Release tags use `vMAJOR.MINOR.PATCH`. The first stable release is `v1.0.0`.
 Use `v1.0.1` for compatible fixes and `v1.1.0` for compatible features.
 Signed release builds can check for updates from the menu. Set
-`AIKIT_AUTO_UPDATE_CHECK=1` to opt into background checks.
+`CONMESH_AUTO_UPDATE_CHECK=1` to opt into background checks.

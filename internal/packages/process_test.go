@@ -14,7 +14,7 @@ func TestProcessTreeCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestProcessChild$")
-	cmd.Env = append(os.Environ(), "AIKIT_PROCESS_HELPER=parent", "AIKIT_PROCESS_GROWTH="+path)
+	cmd.Env = append(os.Environ(), "CONMESH_PROCESS_HELPER=parent", "CONMESH_PROCESS_GROWTH="+path)
 	cmd.WaitDelay = time.Second
 	done := make(chan error, 1)
 	go func() { done <- runContained(ctx, cmd) }()
@@ -46,13 +46,13 @@ func TestProcessTreeCancellation(t *testing.T) {
 	}
 }
 func TestProcessChild(t *testing.T) {
-	mode := os.Getenv("AIKIT_PROCESS_HELPER")
+	mode := os.Getenv("CONMESH_PROCESS_HELPER")
 	if mode == "" {
 		t.Skip("subprocess only")
 	}
 	if mode == "parent" {
 		cmd := exec.Command(os.Args[0], "-test.run=TestProcessChild$")
-		cmd.Env = append(os.Environ(), "AIKIT_PROCESS_HELPER=writer")
+		cmd.Env = append(os.Environ(), "CONMESH_PROCESS_HELPER=writer")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Start(); err != nil {
@@ -61,7 +61,7 @@ func TestProcessChild(t *testing.T) {
 		cmd.Wait()
 		return
 	}
-	f, err := os.OpenFile(os.Getenv("AIKIT_PROCESS_GROWTH"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	f, err := os.OpenFile(os.Getenv("CONMESH_PROCESS_GROWTH"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/embeddings"
+	"github.com/AntonioIliev19/conmesh/internal/embeddings"
 )
 
 func TestOptionalSemanticConfigurationCompatibility(t *testing.T) {

@@ -51,7 +51,7 @@ func physical(t *testing.T) string {
 }
 func TestVerifiedUpdateRollback(t *testing.T) {
 	client, _ := release(t, []byte("new executable"), nil)
-	path := filepath.Join(physical(t), "aikit.exe")
+	path := filepath.Join(physical(t), "conmesh.exe")
 	os.WriteFile(path, []byte("old executable"), 0755)
 	if err := client.Apply(context.Background(), "v1.2.3", path); err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestReleaseTrustBoundaries(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			c, _ := release(t, []byte("payload"), test.modify)
-			path := filepath.Join(physical(t), "aikit")
+			path := filepath.Join(physical(t), "conmesh")
 			os.WriteFile(path, []byte("original"), 0755)
 			if c.Apply(context.Background(), "v1.2.3", path) == nil {
 				t.Fatal("accepted invalid release")
@@ -105,7 +105,7 @@ func TestReleaseTrustBoundaries(t *testing.T) {
 }
 func TestCancelledAndTamperedRollback(t *testing.T) {
 	c, _ := release(t, []byte("payload"), nil)
-	path := filepath.Join(physical(t), "aikit")
+	path := filepath.Join(physical(t), "conmesh")
 	os.WriteFile(path, []byte("original"), 0755)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -128,7 +128,7 @@ func TestCancelledAndTamperedRollback(t *testing.T) {
 func TestLateExecutableReplacementPreserved(t *testing.T) {
 	c, _ := release(t, []byte("new"), nil)
 	dir := physical(t)
-	path := filepath.Join(dir, "aikit")
+	path := filepath.Join(dir, "conmesh")
 	os.WriteFile(path, []byte("old"), 0755)
 	c.beforePromote = func() {
 		replacement := filepath.Join(dir, "replacement")
@@ -157,7 +157,7 @@ func TestLateExecutableReplacementPreserved(t *testing.T) {
 func TestPromotionFailureAndLateCancellationPreserveCurrent(t *testing.T) {
 	for _, cancelled := range []bool{false, true} {
 		c, _ := release(t, []byte("replacement"), nil)
-		path := filepath.Join(physical(t), "aikit")
+		path := filepath.Join(physical(t), "conmesh")
 		os.WriteFile(path, []byte("original"), 0755)
 		ctx, cancel := context.WithCancel(context.Background())
 		c.beforePromote = func() {
@@ -184,7 +184,7 @@ func TestPromotionFailureAndLateCancellationPreserveCurrent(t *testing.T) {
 // This executes the updater while the target image is running, including on
 // Windows. The copied test binary is the original image; no production key exists.
 func TestRunningExecutableReplacement(t *testing.T) {
-	if os.Getenv("AIKIT_UPDATE_TEST_CHILD") == "1" {
+	if os.Getenv("CONMESH_UPDATE_TEST_CHILD") == "1" {
 		t.Skip("parent handles child entry")
 	}
 	original, err := os.ReadFile(os.Args[0])
@@ -197,7 +197,7 @@ func TestRunningExecutableReplacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(path, "-test.run=TestUpdateChild$")
-	cmd.Env = append(os.Environ(), "AIKIT_UPDATE_TEST_CHILD=1")
+	cmd.Env = append(os.Environ(), "CONMESH_UPDATE_TEST_CHILD=1")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("running executable replacement: %v %s", err, output)
 	}
@@ -211,7 +211,7 @@ func TestRunningExecutableReplacement(t *testing.T) {
 	}
 }
 func TestUpdateChild(t *testing.T) {
-	if os.Getenv("AIKIT_UPDATE_TEST_CHILD") != "1" {
+	if os.Getenv("CONMESH_UPDATE_TEST_CHILD") != "1" {
 		t.Skip("subprocess entry")
 	}
 	c, _ := release(t, []byte("replacement image"), nil)
@@ -240,7 +240,7 @@ func TestRunningExecutableRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(path, "-test.run=TestRollbackChild$")
-	cmd.Env = append(os.Environ(), "AIKIT_ROLLBACK_TEST_CHILD=1")
+	cmd.Env = append(os.Environ(), "CONMESH_ROLLBACK_TEST_CHILD=1")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("running rollback: %v %s", err, output)
 	}
@@ -250,7 +250,7 @@ func TestRunningExecutableRollback(t *testing.T) {
 	}
 }
 func TestRollbackChild(t *testing.T) {
-	if os.Getenv("AIKIT_ROLLBACK_TEST_CHILD") != "1" {
+	if os.Getenv("CONMESH_ROLLBACK_TEST_CHILD") != "1" {
 		t.Skip("subprocess entry")
 	}
 	path, err := os.Executable()

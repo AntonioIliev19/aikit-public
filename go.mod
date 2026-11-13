@@ -1,4 +1,4 @@
-module github.com/AntonioIliev19/aikit-public
+module github.com/AntonioIliev19/conmesh
 
 go 1.27.4
 

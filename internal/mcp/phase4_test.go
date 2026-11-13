@@ -9,15 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/knowledge"
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/knowledge"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
 )
 
 func TestSDKKnowledgeRoutingReadOnlyAndOutputBudget(t *testing.T) {
 	_, dir := fixture(t, false)
 	source := []byte("export function Example() {}\n")
 	body := []byte("Observed proposed architecture.\n")
-	for name, data := range map[string][]byte{"frontend/code.ts": source, ".aikit/knowledge/frontend.md": body} {
+	for name, data := range map[string][]byte{"frontend/code.ts": source, ".conmesh/knowledge/frontend.md": body} {
 		full := filepath.Join(dir, filepath.FromSlash(name))
 		if os.MkdirAll(filepath.Dir(full), 0700) != nil || os.WriteFile(full, data, 0600) != nil {
 			t.Fatal("fixture write failed")
@@ -34,16 +34,16 @@ func TestSDKKnowledgeRoutingReadOnlyAndOutputBudget(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	session := client(t, ctx, dir)
-	list, err := call(ctx, session, "aikit_get_architecture", map[string]any{"scopes": []string{"frontend/code.ts"}})
+	list, err := call(ctx, session, "conmesh_get_architecture", map[string]any{"scopes": []string{"frontend/code.ts"}})
 	if err != nil || len(list.Knowledge) != 1 || list.Freshness != "current_path_policy_checked_body_and_citation_digests_unchecked" {
 		t.Fatal("SDK routing failed", err)
 	}
-	doc, err := call(ctx, session, "aikit_get_knowledge", map[string]any{"id": entry.ID})
+	doc, err := call(ctx, session, "conmesh_get_knowledge", map[string]any{"id": entry.ID})
 	if err != nil || doc.Document == nil || doc.Document.EffectiveStatus != "proposed" {
 		t.Fatal("manifest granted SDK authority", err)
 	}
 	for _, args := range []any{map[string]any{"id": entry.ID, "scopes": []string{"frontend"}}, map[string]any{"id": nil}, map[string]any{"id": "../outside"}} {
-		v, err := call(ctx, session, "aikit_get_knowledge", args)
+		v, err := call(ctx, session, "conmesh_get_knowledge", args)
 		if err == nil && v.Error == "" {
 			t.Fatal("invalid knowledge arguments accepted")
 		}
@@ -52,7 +52,7 @@ func TestSDKKnowledgeRoutingReadOnlyAndOutputBudget(t *testing.T) {
 		entry.Scopes = append(entry.Scopes, strings.Repeat("a", 2100)+string(rune('a'+i))+"/**")
 	}
 	save()
-	oversized, err := call(ctx, session, "aikit_get_knowledge", map[string]any{"id": entry.ID})
+	oversized, err := call(ctx, session, "conmesh_get_knowledge", map[string]any{"id": entry.ID})
 	if err != nil || oversized.Error != "OUTPUT_LIMIT" {
 		t.Fatal("provenance output budget exceeded", err)
 	}
@@ -65,7 +65,7 @@ func TestSDKKnowledgeRoutingReadOnlyAndOutputBudget(t *testing.T) {
 			t.Fatal("mutable MCP tool exposed")
 		}
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".aikit/state")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir, ".conmesh/state")); !os.IsNotExist(err) {
 		t.Fatal("read-only knowledge created project state")
 	}
 }

@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 const (
@@ -29,7 +29,7 @@ const (
 	MaxStoreBytes   = 128 << 20
 	MaxEntries      = 4096
 	MaxDepth        = 32
-	SourceManifest  = "aikit-package.json"
+	SourceManifest  = "conmesh-package.json"
 )
 
 type PackageManifest struct {
@@ -169,7 +169,7 @@ func loadLocal(ctx context.Context, source, kind, version string) (snapshot, err
 	}
 	data, exists := s.files[SourceManifest]
 	if !exists || config.Decode(data, &s.manifest) != nil || s.manifest.validate() != nil || s.manifest.Type != kind {
-		return snapshot{}, errors.New("valid matching aikit-package.json is required")
+		return snapshot{}, errors.New("valid matching conmesh-package.json is required")
 	}
 	if version != "" && s.manifest.Version != version {
 		return snapshot{}, errors.New("package version does not match requested version")
@@ -248,7 +248,7 @@ func loadGit(ctx context.Context, source, kind, ref string, git gitRunner) (snap
 	if !validRef(ref) {
 		return snapshot{}, errors.New("Git packages require an explicit exact --version ref")
 	}
-	tmp, err := os.MkdirTemp("", "aikit-git-")
+	tmp, err := os.MkdirTemp("", "conmesh-git-")
 	if err != nil {
 		return snapshot{}, errors.New("cannot stage Git package")
 	}
@@ -273,7 +273,7 @@ func loadGit(ctx context.Context, source, kind, ref string, git gitRunner) (snap
 	if err != nil {
 		return snapshot{}, err
 	}
-	materialized, err := os.MkdirTemp("", "aikit-source-")
+	materialized, err := os.MkdirTemp("", "conmesh-source-")
 	if err != nil {
 		return snapshot{}, errors.New("cannot stage package files")
 	}

@@ -13,15 +13,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/index"
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("AIKIT_MCP_TEST_SERVER") == "1" {
-		if err := Serve(context.Background(), os.Getenv("AIKIT_MCP_TEST_PROJECT"), "test", &sdk.StdioTransport{MaxLineLength: 16 << 10}); err != nil {
+	if os.Getenv("CONMESH_MCP_TEST_SERVER") == "1" {
+		if err := Serve(context.Background(), os.Getenv("CONMESH_MCP_TEST_PROJECT"), "test", &sdk.StdioTransport{MaxLineLength: 16 << 10}); err != nil {
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -48,7 +48,7 @@ func fixture(t *testing.T, enabled bool) (*index.Core, string) {
 func client(t *testing.T, ctx context.Context, dir string) *sdk.ClientSession {
 	t.Helper()
 	cmd := exec.CommandContext(ctx, os.Args[0])
-	cmd.Env = append(os.Environ(), "AIKIT_MCP_TEST_SERVER=1", "AIKIT_MCP_TEST_PROJECT="+dir)
+	cmd.Env = append(os.Environ(), "CONMESH_MCP_TEST_SERVER=1", "CONMESH_MCP_TEST_PROJECT="+dir)
 	c := sdk.NewClient(&sdk.Implementation{Name: "independent-sdk-client", Version: "test"}, nil)
 	session, err := c.Connect(ctx, &sdk.CommandTransport{Command: cmd}, nil)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestMissingDisabledAndAdversarialArguments(t *testing.T) {
 				t.Fatal("missing read-only annotation")
 			}
 		}
-		value, err := call(ctx, session, "aikit_search_codebase", map[string]any{"query": "hello"})
+		value, err := call(ctx, session, "conmesh_search_codebase", map[string]any{"query": "hello"})
 		want := "INDEX_DISABLED"
 		if enabled {
 			want = "INDEX_ABSENT"
@@ -103,22 +103,22 @@ func TestMissingDisabledAndAdversarialArguments(t *testing.T) {
 			t.Fatal("unexpected missing index result", value, err)
 		}
 		for _, raw := range []string{`null`, `[]`, `{"query":"hello","root":"/elsewhere"}`, `{"query":"hello","scope":"../outside"}`, `{"query":"hello","scope":"x:stream"}`, `{"query":"hello","limit":0}`, `{"query":"hello","limit":null}`, `{"query":"hello","scope":null}`, `{"query":"hello","limit":51}`, `{"query":"hello","limit":1.5}`, `{"query":"hello","query":"other"}`, `{"query":42}`, `{}`} {
-			v, err := call(ctx, session, "aikit_search_codebase", json.RawMessage(raw))
+			v, err := call(ctx, session, "conmesh_search_codebase", json.RawMessage(raw))
 			if err != nil || v.Error != "INVALID_ARGUMENTS" {
 				t.Fatalf("adversarial args accepted: %s (%s) %v", raw, v.Error, err)
 			}
 		}
 		for _, raw := range []string{`null`, `{"root":"elsewhere"}`, `{"scope":"src"}`} {
-			v, err := call(ctx, session, "aikit_index_status", json.RawMessage(raw))
+			v, err := call(ctx, session, "conmesh_index_status", json.RawMessage(raw))
 			if err != nil || v.Error != "INVALID_ARGUMENTS" {
 				t.Fatal("status accepted arguments", v, err)
 			}
 		}
-		status, err := call(ctx, session, "aikit_index_status", map[string]any{})
+		status, err := call(ctx, session, "conmesh_index_status", map[string]any{})
 		if err != nil || status.Status == nil || status.Status.Present || status.Status.Enabled != enabled {
 			t.Fatal("bad status", status, err)
 		}
-		if _, err := os.Stat(filepath.Join(dir, ".aikit", "state")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(dir, ".conmesh", "state")); !os.IsNotExist(err) {
 			t.Fatal("read-only server created absent state")
 		}
 	}
@@ -139,7 +139,7 @@ func TestTwoIndependentStdioReadersSharedIndexWithWriter(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, second := client(t, ctx, dir), client(t, ctx, dir)
-	for _, name := range []string{"aikit_search_codebase", "aikit_find_symbol"} {
+	for _, name := range []string{"conmesh_search_codebase", "conmesh_find_symbol"} {
 		a, err := call(ctx, first, name, map[string]any{"query": "sharedEvidence"})
 		if err != nil || len(a.Evidence) != 1 || a.Error != "" {
 			t.Fatal(a, err)
@@ -158,7 +158,7 @@ func TestTwoIndependentStdioReadersSharedIndexWithWriter(t *testing.T) {
 		go func(s *sdk.ClientSession) {
 			defer wg.Done()
 			for i := 0; i < 8; i++ {
-				v, err := call(ctx, s, "aikit_search_codebase", map[string]any{"query": "sharedEvidence"})
+				v, err := call(ctx, s, "conmesh_search_codebase", map[string]any{"query": "sharedEvidence"})
 				if err != nil {
 					errs <- err
 					return
@@ -192,21 +192,21 @@ func TestTwoIndependentStdioReadersSharedIndexWithWriter(t *testing.T) {
 	if err := os.WriteFile(source, []byte("export function changedSource() {}\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	v, err := call(ctx, first, "aikit_find_symbol", map[string]any{"query": "sharedEvidence"})
+	v, err := call(ctx, first, "conmesh_find_symbol", map[string]any{"query": "sharedEvidence"})
 	if err != nil || v.Error != "INDEX_STALE" {
 		t.Fatal("stale indexed evidence exposed", v, err)
 	}
 	if _, err := core.Index(ctx, nil); err != nil {
 		t.Fatal(err)
 	}
-	v, err = call(ctx, second, "aikit_find_symbol", map[string]any{"query": "changedSource"})
+	v, err = call(ctx, second, "conmesh_find_symbol", map[string]any{"query": "changedSource"})
 	if err != nil || v.Error != "" || len(v.Evidence) != 1 {
 		t.Fatal("second reader missed writer commit", v, err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".aikitignore"), []byte("source.ts\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".conmeshignore"), []byte("source.ts\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	v, err = call(ctx, first, "aikit_find_symbol", map[string]any{"query": "changedSource"})
+	v, err = call(ctx, first, "conmesh_find_symbol", map[string]any{"query": "changedSource"})
 	if err != nil || v.Error != "INDEX_STALE" || len(v.Evidence) != 0 {
 		t.Fatal("newly excluded evidence exposed", v, err)
 	}
@@ -229,7 +229,7 @@ func TestOutputBoundAndErrorSanitization(t *testing.T) {
 	if _, err := core.Index(ctx, nil); err != nil {
 		t.Fatal(err)
 	}
-	v, err := call(ctx, client(t, ctx, dir), "aikit_search_codebase", map[string]any{"query": "bounded", "limit": 50})
+	v, err := call(ctx, client(t, ctx, dir), "conmesh_search_codebase", map[string]any{"query": "bounded", "limit": 50})
 	if err != nil || !v.Truncated || len(v.Evidence) == 0 {
 		t.Fatal("output was not bounded", v.Truncated, err)
 	}

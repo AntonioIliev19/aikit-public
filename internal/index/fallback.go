@@ -11,8 +11,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 var ErrFallback = errors.New("FALLBACK_UNAVAILABLE: explicit indexed miss and fresh bounded source set required; ripgrep must be installed")

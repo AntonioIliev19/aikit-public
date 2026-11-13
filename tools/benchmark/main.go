@@ -17,9 +17,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AntonioIliev19/aikit-public/internal/benchmark"
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/embeddings"
+	"github.com/AntonioIliev19/conmesh/internal/benchmark"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/embeddings"
 )
 
 func main() {
@@ -63,7 +63,7 @@ func run() error {
 	flag.IntVar(&o.Queries, "queries", 5, "query rounds per repetition")
 	flag.StringVar(&o.Profile, "profile", "balanced", "eco, balanced, performance")
 	flag.StringVar(&o.Mode, "mode", "basic", "basic or hybrid")
-	flag.StringVar(&o.CLI, "cli", "", "absolute path to independently built native aikit executable")
+	flag.StringVar(&o.CLI, "cli", "", "absolute path to independently built native conmesh executable")
 	flag.StringVar(&o.Commit, "commit", "unknown", "source commit plus dirty status if applicable")
 	flag.StringVar(&out, "out", "", "new output JSON path; CSV sibling is also created")
 	flag.StringVar(&settings, "semantic-settings", "", "explicit local real-model Settings JSON for hybrid only; never downloaded")

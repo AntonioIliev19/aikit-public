@@ -9,7 +9,7 @@ import (
 
 func TestPrivateStateGitExclusionAndIgnorePreservation(t *testing.T) {
 	project := physicalTemp(t)
-	if err := os.Mkdir(filepath.Join(project, ".aikit"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(project, ".conmesh"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	root, err := OpenRoot(project)
@@ -23,7 +23,7 @@ func TestPrivateStateGitExclusionAndIgnorePreservation(t *testing.T) {
 	if err := EnsurePrivateState(root); err != nil {
 		t.Fatal("not idempotent", err)
 	}
-	for _, name := range []string{".aikit/state/index.sqlite", ".aikit/state/harness-backup.json", ".aikit/state/harness-transaction/before.json"} {
+	for _, name := range []string{".conmesh/state/index.sqlite", ".conmesh/state/harness-backup.json", ".conmesh/state/harness-transaction/before.json"} {
 		if !HardDenied(name, false) {
 			t.Fatal("private metadata not hard denied")
 		}
@@ -36,14 +36,14 @@ func TestPrivateStateGitExclusionAndIgnorePreservation(t *testing.T) {
 	if data, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v %s", err, data)
 	}
-	for _, name := range []string{".aikit/state/index.sqlite", ".aikit/state/harness-backup.json", ".aikit/state/harness-transaction/before.json"} {
+	for _, name := range []string{".conmesh/state/index.sqlite", ".conmesh/state/harness-backup.json", ".conmesh/state/harness-transaction/before.json"} {
 		cmd := exec.Command("git", "check-ignore", "--no-index", name)
 		cmd.Dir = project
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("private artifact not Git ignored: %s", name)
 		}
 	}
-	ignore := filepath.Join(project, ".aikit/state/.gitignore")
+	ignore := filepath.Join(project, ".conmesh/state/.gitignore")
 	if err := os.WriteFile(ignore, []byte("user-policy\n"), 0600); err != nil {
 		t.Fatal(err)
 	}

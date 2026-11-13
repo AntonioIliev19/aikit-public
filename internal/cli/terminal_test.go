@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/index"
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
 )
 
 func TestTerminalPolicyAndRedirectedBytes(t *testing.T) {

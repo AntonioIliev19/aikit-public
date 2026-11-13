@@ -15,16 +15,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/embeddings"
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/embeddings"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 func TestMain(m *testing.M) {
-	switch os.Getenv("AIKIT_FAKE_RG_MODE") {
+	switch os.Getenv("CONMESH_FAKE_RG_MODE") {
 	case "deny":
-		os.WriteFile(os.Getenv("AIKIT_FAKE_RG_IGNORE"), []byte("src/code.ts\n"), 0600)
+		os.WriteFile(os.Getenv("CONMESH_FAKE_RG_IGNORE"), []byte("src/code.ts\n"), 0600)
 		io.WriteString(os.Stdout, "1\n")
 		os.Exit(0)
 	case "wait":
@@ -77,7 +77,7 @@ func semanticFixture(t *testing.T, files map[string]string, onShow func()) (*Cor
 	cfg.Indexing.Semantic = true
 	cfg.Semantic = &embeddings.Settings{Endpoint: server.URL, Model: "nomic-embed-text:v1.5", ModelDigest: modelDigest, LicenseDigest: repository.Digest([]byte(license)), Consent: true, LocalOnly: true}
 	data, _ := json.Marshal(cfg)
-	write(t, dir, ".aikit/"+config.File, string(data))
+	write(t, dir, ".conmesh/"+config.File, string(data))
 	return c, dir, calls
 }
 
@@ -107,7 +107,7 @@ func TestSemanticMockReuseFusionPurgeAndBasicOptionality(t *testing.T) {
 	if err != nil || changed.Reused != 1 || changed.Embedded != 1 {
 		t.Fatal("sibling edit discarded unchanged chunk", changed, err)
 	}
-	write(t, dir, ".aikitignore", "src/code.ts\n")
+	write(t, dir, ".conmeshignore", "src/code.ts\n")
 	update(t, c)
 	cache, err := c.semanticDB(ctx, false)
 	if err != nil {
@@ -120,7 +120,7 @@ func TestSemanticMockReuseFusionPurgeAndBasicOptionality(t *testing.T) {
 		t.Fatal("ignored vectors persisted")
 	}
 	// Optional broken cache never turns a committed basic index into a failure.
-	write(t, dir, ".aikit/state/semantic.sqlite", "corrupted optional cache")
+	write(t, dir, ".conmesh/state/semantic.sqlite", "corrupted optional cache")
 	write(t, dir, "other.txt", "newbasicfixtureword\n")
 	report, err := c.Index(ctx, nil)
 	if err != nil || !report.SemanticCleanupWarning || len(search(t, c, "newbasicfixtureword")) != 1 {
@@ -130,7 +130,7 @@ func TestSemanticMockReuseFusionPurgeAndBasicOptionality(t *testing.T) {
 func TestSemanticReauthorizesAfterRuntimeIdentityBeforeSending(t *testing.T) {
 	native(t)
 	var dir string
-	c, project, calls := semanticFixture(t, map[string]string{"src/code.ts": "export function Alpha() {}\n"}, func() { write(t, dir, ".aikitignore", "src/code.ts\n") })
+	c, project, calls := semanticFixture(t, map[string]string{"src/code.ts": "export function Alpha() {}\n"}, func() { write(t, dir, ".conmeshignore", "src/code.ts\n") })
 	dir = project
 	update(t, c)
 	if _, err := c.IndexSemantic(context.Background(), "src"); !errors.Is(err, security.ErrDenied) || calls.Load() != 0 {
@@ -153,7 +153,7 @@ func TestSemanticStaleAndMissingConfiguration(t *testing.T) {
 func TestReferenceCandidatesAndFallbackGateAudit(t *testing.T) {
 	native(t)
 	ctx := context.Background()
-	c, dir := fixture(t, true, map[string]string{"src/code.ts": "export function Alpha(){ return 'prefixneedlesuffix'; }\n", "ignored.txt": "needle", ".aikitignore": "ignored.txt\n", "secret.txt": "password = abcdefghijklmnop\n"})
+	c, dir := fixture(t, true, map[string]string{"src/code.ts": "export function Alpha(){ return 'prefixneedlesuffix'; }\n", "ignored.txt": "needle", ".conmeshignore": "ignored.txt\n", "secret.txt": "password = abcdefghijklmnop\n"})
 	update(t, c)
 	refs, err := c.FindReferenceCandidates(ctx, Query{Text: "Alpha"})
 	if err != nil || len(refs) != 1 || refs[0].Mechanism != "lexical_reference_candidate_no_lsp" {
@@ -226,7 +226,7 @@ func TestSemanticSidecarPathIsPrivate(t *testing.T) {
 	if err := os.WriteFile(external, []byte("outside"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(dir, ".aikit/state/semantic.sqlite-wal")
+	link := filepath.Join(dir, ".conmesh/state/semantic.sqlite-wal")
 	if err := os.Symlink(external, link); err != nil {
 		t.Skip("symlink unavailable")
 	}
@@ -252,12 +252,12 @@ func TestFallbackRechecksAfterSubprocessAndDeadlines(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", tools)
-	t.Setenv("AIKIT_FAKE_RG_MODE", "deny")
-	t.Setenv("AIKIT_FAKE_RG_IGNORE", filepath.Join(dir, ".aikitignore"))
+	t.Setenv("CONMESH_FAKE_RG_MODE", "deny")
+	t.Setenv("CONMESH_FAKE_RG_IGNORE", filepath.Join(dir, ".conmeshignore"))
 	if _, err := c.Fallback(context.Background(), Query{Text: "needle", Limit: 1}); !errors.Is(err, security.ErrDenied) {
 		t.Fatal("post-process exclusion bypassed", err)
 	}
-	t.Setenv("AIKIT_FAKE_RG_MODE", "wait")
+	t.Setenv("CONMESH_FAKE_RG_MODE", "wait")
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	start := time.Now()
@@ -274,7 +274,7 @@ func TestFinalEvidenceCheckIncludesLexicalOutsideSemanticPrefix(t *testing.T) {
 	c, dir := fixture(t, true, map[string]string{"z.txt": "lexicalfixtureword\n"})
 	update(t, c)
 	items := search(t, c, "lexicalfixtureword")
-	write(t, dir, ".aikitignore", "z.txt\n")
+	write(t, dir, ".conmeshignore", "z.txt\n")
 	if err := c.checkEvidence(context.Background(), items); !errors.Is(err, security.ErrDenied) {
 		t.Fatal("final lexical evidence unchecked", err)
 	}

@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
-	"github.com/AntonioIliev19/aikit-public/internal/update"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/update"
 )
 
 func discoverHarnesses(lookup func(string) (string, error)) []string {

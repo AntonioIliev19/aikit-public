@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 func TestScannerRetrievalSamePolicy(t *testing.T) {
@@ -16,7 +16,7 @@ func TestScannerRetrievalSamePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := map[string]string{".gitignore": "hidden/\n", "hidden/x.ts": "forbidden", "safe/x.ts": "safe", "safe/.aikitignore": "private.ts\n", "safe/private.ts": "forbidden", "node_modules/x.ts": "forbidden", "secret.ts": "api_key=longSyntheticValue123456"}
+	files := map[string]string{".gitignore": "hidden/\n", "hidden/x.ts": "forbidden", "safe/x.ts": "safe", "safe/.conmeshignore": "private.ts\n", "safe/private.ts": "forbidden", "node_modules/x.ts": "forbidden", "secret.ts": "api_key=longSyntheticValue123456"}
 	for name, data := range files {
 		full := filepath.Join(dir, filepath.FromSlash(name))
 		os.MkdirAll(filepath.Dir(full), 0700)

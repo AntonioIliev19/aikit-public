@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 // Exported is an immutable caller-owned copy of a verified effective package.
@@ -34,7 +34,7 @@ func (m *Manager) Export(ctx context.Context, kind string) ([]Exported, error) {
 		var base string
 		var err error
 		if scope == "override" {
-			base = filepath.Join(m.Project, ".aikit", "overrides", kind+"s")
+			base = filepath.Join(m.Project, ".conmesh", "overrides", kind+"s")
 		} else {
 			base, err = m.base(scope)
 			if err != nil {

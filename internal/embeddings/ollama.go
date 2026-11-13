@@ -20,7 +20,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 var ErrUnavailable = errors.New("SEMANTIC_UNAVAILABLE: opt in and configure an installed local CPU runtime/model")

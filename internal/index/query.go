@@ -7,9 +7,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/AntonioIliev19/aikit-public/internal/parser"
-	"github.com/AntonioIliev19/aikit-public/internal/repository"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/parser"
+	"github.com/AntonioIliev19/conmesh/internal/repository"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 const MaxResults = 50

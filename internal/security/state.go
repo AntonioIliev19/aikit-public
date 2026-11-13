@@ -12,22 +12,22 @@ import (
 // EnsurePrivateState guards local databases and recoverable config backups from
 // source scanning and default Git staging. It never overwrites a user's ignore.
 func EnsurePrivateState(root *os.Root) error {
-	if err := CheckPath(filepath.Join(root.Name(), ".aikit", "state")); err != nil {
+	if err := CheckPath(filepath.Join(root.Name(), ".conmesh", "state")); err != nil {
 		return err
 	}
-	if err := root.MkdirAll(".aikit/state", 0700); err != nil {
+	if err := root.MkdirAll(".conmesh/state", 0700); err != nil {
 		return ErrDenied
 	}
-	for _, name := range []string{".aikit", ".aikit/state"} {
+	for _, name := range []string{".conmesh", ".conmesh/state"} {
 		info, err := root.Lstat(name)
 		if err != nil || CheckEntry(info) != nil || !info.IsDir() {
 			return ErrDenied
 		}
-		if name == ".aikit/state" && runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 {
+		if name == ".conmesh/state" && runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 {
 			return ErrDenied
 		}
 	}
-	state, err := root.OpenRoot(".aikit/state")
+	state, err := root.OpenRoot(".conmesh/state")
 	if err != nil {
 		return ErrDenied
 	}

@@ -1,4 +1,4 @@
-module aikit-parser-compat
+module conmesh-parser-compat
 
 go 1.27.4
 

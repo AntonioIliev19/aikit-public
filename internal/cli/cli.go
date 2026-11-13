@@ -14,11 +14,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/harness"
-	"github.com/AntonioIliev19/aikit-public/internal/index"
-	"github.com/AntonioIliev19/aikit-public/internal/packages"
-	"github.com/AntonioIliev19/aikit-public/internal/update"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/harness"
+	"github.com/AntonioIliev19/conmesh/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/packages"
+	"github.com/AntonioIliev19/conmesh/internal/update"
 )
 
 const help = `ConMesh - local-first development toolkit
@@ -69,7 +69,7 @@ func Run(args []string, stdout, stderr io.Writer, version string) int {
 		if file, ok := stdout.(*os.File); out.live && ok && isTerminal(os.Stdin) && enableColor(file) {
 			err := runMenu(os.Stdin, stdout, out, version, func(args []string) {
 				Run(args, stdout, stderr, version)
-			}, loadMenuUpdates(), os.Getenv("AIKIT_AUTO_UPDATE_CHECK") == "1", terminalMenuMode(os.Stdin))
+			}, loadMenuUpdates(), os.Getenv("CONMESH_AUTO_UPDATE_CHECK") == "1", terminalMenuMode(os.Stdin))
 			if err != nil {
 				fmt.Fprintln(stderr, "conmesh:", err)
 				return 1

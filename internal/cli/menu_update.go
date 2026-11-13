@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
-	"github.com/AntonioIliev19/aikit-public/internal/update"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/update"
 )
 
 const updateCacheName = "menu-update.json"

@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"os"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 //go:embed research.md
@@ -17,10 +17,10 @@ func (s Store) Scaffold() error {
 		return security.ErrDenied
 	}
 	defer root.Close()
-	if security.CheckPath(s.Project+"/.aikit/knowledge") != nil {
+	if security.CheckPath(s.Project+"/.conmesh/knowledge") != nil {
 		return security.ErrDenied
 	}
-	if root.MkdirAll(".aikit/knowledge", 0700) != nil {
+	if root.MkdirAll(".conmesh/knowledge", 0700) != nil {
 		return security.ErrDenied
 	}
 	f, err := root.OpenFile(ManifestPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)

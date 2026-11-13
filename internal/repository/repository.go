@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 )
 
 const MaxFileBytes = 1 << 20
@@ -23,7 +23,7 @@ const MaxPolicyBytes = 4 << 20
 const MaxSourceBytes = 512 << 20
 
 var ErrLimit = errors.New("repository resource limit exceeded")
-var ErrStale = errors.New("INDEX_STALE: source or policy changed; run aikit index")
+var ErrStale = errors.New("INDEX_STALE: source or policy changed; run conmesh index")
 
 type Snapshot struct {
 	Root    *os.Root
@@ -43,7 +43,7 @@ func Scan(ctx context.Context, root *os.Root) (*Snapshot, error) {
 		if depth > MaxDepth {
 			return ErrLimit
 		}
-		for _, file := range []string{".gitignore", ".aikitignore"} {
+		for _, file := range []string{".gitignore", ".conmeshignore"} {
 			name := file
 			if dir != "." {
 				name = dir + "/" + file

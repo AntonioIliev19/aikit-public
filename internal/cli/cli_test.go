@@ -3,7 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
-	"github.com/AntonioIliev19/aikit-public/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/config"
 	"os"
 	"path/filepath"
 	"strings"

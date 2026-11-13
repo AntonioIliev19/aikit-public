@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AntonioIliev19/aikit-public/internal/packages"
+	"github.com/AntonioIliev19/conmesh/internal/packages"
 )
 
 func physicalTemp(t *testing.T) string {
@@ -70,8 +70,8 @@ func TestCLIProjectLifecycle(t *testing.T) {
 
 func TestGlobalCommandsSurviveMalformedProject(t *testing.T) {
 	dir, global, source := physicalTemp(t), filepath.Join(physicalTemp(t), "global"), cliSource(t)
-	os.Mkdir(filepath.Join(dir, ".aikit"), 0700)
-	os.WriteFile(filepath.Join(dir, ".aikit", "config.yaml"), []byte("malformed"), 0600)
+	os.Mkdir(filepath.Join(dir, ".conmesh"), 0700)
+	os.WriteFile(filepath.Join(dir, ".conmesh", "config.yaml"), []byte("malformed"), 0600)
 	for _, args := range [][]string{{"skill", "add", source, "--global", "--trust"}, {"skill", "list", "--global"}, {"package", "update", "example", "--type", "skill", "--global", "--trust"}, {"skill", "remove", "example", "--global"}} {
 		var out, errOut bytes.Buffer
 		if code := run(args, &out, &errOut, "test", dir, global); code != 0 {

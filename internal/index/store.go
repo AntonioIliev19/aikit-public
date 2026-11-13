@@ -12,13 +12,13 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/AntonioIliev19/aikit-public/internal/config"
-	"github.com/AntonioIliev19/aikit-public/internal/security"
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/security"
 	_ "modernc.org/sqlite"
 )
 
 var ErrDisabled = errors.New("INDEX_DISABLED: explicitly enable indexing in project configuration first")
-var ErrAbsent = errors.New("INDEX_ABSENT: run aikit index after explicit opt-in")
+var ErrAbsent = errors.New("INDEX_ABSENT: run conmesh index after explicit opt-in")
 var ErrState = errors.New("INDEX_STATE: unsafe, incompatible or unavailable index")
 
 const schema = `
@@ -69,7 +69,7 @@ func (c *Core) state(create bool) (string, error) {
 			return "", err
 		}
 	}
-	for _, name := range []string{".aikit", ".aikit/state"} {
+	for _, name := range []string{".conmesh", ".conmesh/state"} {
 		info, err := root.Lstat(name)
 		if errors.Is(err, fs.ErrNotExist) {
 			return "", ErrAbsent
@@ -77,12 +77,12 @@ func (c *Core) state(create bool) (string, error) {
 		if err != nil || security.CheckEntry(info) != nil || !info.IsDir() {
 			return "", security.ErrDenied
 		}
-		if runtime.GOOS != "windows" && name == ".aikit/state" && info.Mode().Perm()&0077 != 0 {
+		if runtime.GOOS != "windows" && name == ".conmesh/state" && info.Mode().Perm()&0077 != 0 {
 			return "", security.ErrDenied
 		}
 	}
 	for _, name := range []string{"index.sqlite", "index.sqlite-wal", "index.sqlite-shm", "index.sqlite-journal"} {
-		rel := ".aikit/state/" + name
+		rel := ".conmesh/state/" + name
 		if err := security.CheckPath(filepath.Join(c.project, filepath.FromSlash(rel))); err != nil {
 			return "", err
 		}
@@ -109,7 +109,7 @@ func (c *Core) state(create bool) (string, error) {
 			return "", security.ErrDenied
 		}
 	}
-	return filepath.Join(c.project, ".aikit", "state", "index.sqlite"), nil
+	return filepath.Join(c.project, ".conmesh", "state", "index.sqlite"), nil
 }
 
 func (c *Core) open(ctx context.Context, writer bool) (*sql.DB, error) {

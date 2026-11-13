@@ -53,7 +53,7 @@ func HardDenied(name string, isDir bool) bool {
 		}
 	}
 	for i := 0; i+1 < len(parts); i++ {
-		if parts[i] == ".aikit" && (parts[i+1] == "state" || parts[i+1] == "cache" || parts[i+1] == "packages") {
+		if (parts[i] == ".conmesh" || parts[i] == ".aikit") && (parts[i+1] == "state" || parts[i+1] == "cache" || parts[i+1] == "packages") {
 			return true
 		}
 	}
@@ -72,9 +72,9 @@ type Policy struct {
 	rules []ignoreFile
 }
 
-// LoadDirectory reads only bounded, regular .gitignore and .aikitignore inputs.
+// LoadDirectory reads only bounded, regular .gitignore and .conmeshignore inputs.
 func (p *Policy) LoadDirectory(root *os.Root, dir string) error {
-	for _, file := range []string{".gitignore", ".aikitignore"} {
+	for _, file := range []string{".gitignore", ".aikitignore", ".conmeshignore"} {
 		name := file
 		if dir != "." {
 			name = dir + "/" + file
@@ -101,7 +101,7 @@ func (p *Policy) LoadDirectory(root *os.Root, dir string) error {
 	return nil
 }
 
-// Denied honors nested gitignore rules and applies .aikitignore last. Callers
+// Denied honors nested gitignore rules and applies .conmeshignore last. Callers
 // prune denied directories, matching Git's no-reinclude-under-ignored-parent rule.
 func (p *Policy) Denied(name string, isDir bool) bool {
 	if HardDenied(name, isDir) {
@@ -131,7 +131,7 @@ func (p *Policy) ignored(name string, isDir bool) bool {
 			ignored[rule.family] = match.Ignore()
 		}
 	}
-	return ignored[".gitignore"] || ignored[".aikitignore"]
+	return ignored[".gitignore"] || ignored[".aikitignore"] || ignored[".conmeshignore"]
 }
 
 // ReadFileBounded confines reads, checks the opened object, and caps allocation
