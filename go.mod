@@ -6,7 +6,7 @@ require (
 	github.com/denormal/go-gitignore v0.0.0-20180930084346-ae8ad1d07817
 	github.com/mattn/go-isatty v0.0.24
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/tree-sitter/go-tree-sitter v0.24.0
 	github.com/tree-sitter/tree-sitter-c-sharp v0.23.1
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2
