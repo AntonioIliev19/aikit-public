@@ -1,5 +1,3 @@
-cloud.google.com/go/compute/metadata v0.3.0 h1:Tz+eQXMEqDIKRsmY3cHTL6FVaynIjX2QxYC4trgAKZc=
-cloud.google.com/go/compute/metadata v0.3.0/go.mod h1:zFmK7XCadkQkj6TtorcaGlCW1hT1fIilQDwofLpJ20k=
 github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 h1:y5HC9v93H5EPKqaS1UYVg1uYah5Xf51mBfIoWehClUQ=
 github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964/go.mod h1:Xd9hchkHSWYkEqJwUGisez3G1QY8Ryz0sdWrLPMGjLk=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -44,8 +42,8 @@ github.com/tree-sitter/go-tree-sitter v0.24.0 h1:kRZb6aBNfcI/u0Qh8XEt3zjNVnmxTis
 github.com/tree-sitter/go-tree-sitter v0.24.0/go.mod h1:x681iFVoLMEwOSIHA1chaLkXlroXEN7WY+VHGFaoDbk=
 github.com/tree-sitter/tree-sitter-c v0.21.5-0.20240818205408-927da1f210eb h1:A8425heRM8mylnv4H58FPUiH+aYivyitre0PzxrfmWs=
 github.com/tree-sitter/tree-sitter-c v0.21.5-0.20240818205408-927da1f210eb/go.mod h1:dOF6gtQiF9UwNh995T5OphYmtIypkjsp3ap7r9AN/iA=
-github.com/tree-sitter/tree-sitter-c-sharp v0.23.1 h1:ddG6osP34sMieVNN6lu5ZG/3N8Wn+67+43BmipqidyM=
-github.com/tree-sitter/tree-sitter-c-sharp v0.23.1/go.mod h1:H7/aFm5vR1A8Yn5VIOfLWPdlKuJsMgZ5eDmaJdv8bY0=
+github.com/tree-sitter/tree-sitter-c-sharp v0.23.5 h1:EeUc2WJE5G1pD6YEqera2yVHYeroeR+/MakKX2a+0xQ=
+github.com/tree-sitter/tree-sitter-c-sharp v0.23.5/go.mod h1:H7/aFm5vR1A8Yn5VIOfLWPdlKuJsMgZ5eDmaJdv8bY0=
 github.com/tree-sitter/tree-sitter-cpp v0.22.4-0.20240818224355-b1a4e2b25148 h1:AfFPZwtwGN01BW1jDdqBVqscTwetvMpydqYZz57RSlc=
 github.com/tree-sitter/tree-sitter-cpp v0.22.4-0.20240818224355-b1a4e2b25148/go.mod h1:Bh6U3viD57rFXRYIQ+kmiYtr+1Bx0AceypDLJJSyi9s=
 github.com/tree-sitter/tree-sitter-embedded-template v0.21.1-0.20240819044651-ffbf64942c33 h1:TwqSV3qLp3tKSqirGLRHnjFk9Tc2oy57LIl+FQ4GjI4=
