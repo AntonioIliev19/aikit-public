@@ -97,7 +97,12 @@ func DigestOK(s string) bool {
 	}
 	return true
 }
-func kindOK(s string) bool { return s == "architecture" || s == "pattern" || s == "example" }
+
+// kindOK accepts guidance kinds and "agent", a project agent definition that
+// sync publishes as a custom agent.
+func kindOK(s string) bool {
+	return s == "architecture" || s == "pattern" || s == "example" || s == "agent"
+}
 func scopeOK(s string) bool {
 	s = strings.TrimSuffix(s, "/**")
 	return len(s) <= 4096 && security.ValidateRelative(s) == nil && !security.HardDenied(s, false)
@@ -452,4 +457,34 @@ func (s Store) Approve(ctx context.Context, id, reviewed string) error {
 		return ErrReview
 	}
 	return nil
+}
+
+// Approved returns every entry that is approved for the current user and whose
+// document and citations still match, in manifest order. Entries that are
+// proposed, stale or unreadable are left out and named in skipped, so callers
+// publish only reviewed, current guidance. A missing manifest is not an error.
+func (s Store) Approved(ctx context.Context) (docs []Document, skipped []string, err error) {
+	m, err := s.load(ctx)
+	if errors.Is(err, ErrAbsent) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, e := range m.Entries {
+		doc, err := s.Read(ctx, e.ID)
+		switch {
+		case ctx.Err() != nil:
+			return nil, nil, ctx.Err()
+		case errors.Is(err, repository.ErrStale):
+			skipped = append(skipped, e.ID+": document or cited source changed; review and approve it again to publish")
+		case err != nil:
+			skipped = append(skipped, e.ID+": cannot be verified; run conmesh knowledge show "+e.ID)
+		case doc.EffectiveStatus != "approved":
+			skipped = append(skipped, e.ID+": not approved yet; review it with conmesh knowledge show "+e.ID)
+		default:
+			docs = append(docs, doc)
+		}
+	}
+	return docs, skipped, nil
 }

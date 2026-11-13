@@ -19,7 +19,8 @@ Paste this prompt into a coding-agent session with terminal access.
 ```text
 Set up ConMesh using the steering guide at
 https://raw.githubusercontent.com/AntonioIliev19/conmesh/main/INSTALL.md
-Read it first. Ask me whether I want CLI-only installation or setup for one or more repositories.
+Read it first. Ask me whether I want CLI-only installation or setup for one or more repositories,
+and which AI coding tools I use so you can connect the ConMesh MCP server to each of them.
 Show the plan and get my confirmation before installing or changing anything.
 Ask separately whether I want to index any repository, and confirm each exact path first.
 ```
@@ -57,7 +58,7 @@ conmesh --help
 
 Run `conmesh` or `conmesh menu` in a terminal. The menu shows the current workspace
 and version, then groups its items under **Packages** (Install, Update, List,
-Uninstall), **Project** (Workspace, Doctor) and **ConMesh** (Help, Self-update,
+Uninstall; see [Third-party agents and skills](#third-party-agents-and-skills)), **Project** (Workspace, Doctor) and **ConMesh** (Help, Self-update,
 Quit). **Install** lists the predefined agents first, then accepts any local
 package folder or HTTPS Git URL. **List** shows installed agents and skills under
 their own headings. **Update** updates an installed agent or skill; **Self-update**
@@ -120,8 +121,10 @@ conmesh status
 
 `init` creates `.conmesh/config.yaml`. `--harness codex` selects Codex and `--index`
 enables indexing in the settings. Use `--harness claude` for Claude Code or
-`--harness claude,codex` for both. For OpenCode, Cursor, or another local host,
-use `conmesh init --index`. If you only want package management, use `conmesh init`
+`--harness claude,codex` for both. Add `cursor` or `copilot` to the list to also
+publish approved project knowledge as Cursor rules or GitHub Copilot
+instructions (see step 6); ConMesh does not configure MCP for those two. For
+OpenCode or another local host, use `conmesh init --index`. If you only want package management, use `conmesh init`
 and stop here. `conmesh doctor` checks available runtime features.
 
 If the project is already initialized, `init` preserves its settings. Edit
@@ -197,6 +200,56 @@ Review the Markdown files and the manifest diff. For each entry you want to
 approve, run `conmesh knowledge show <id>` with its manifest ID. If the document
 and citations look right, use the returned review digest in
 `conmesh knowledge approve <id> --reviewed-digest <digest>`.
+
+### 6. Publish the knowledge to every session
+
+Run `conmesh sync --dry-run`, review the plan, then `conmesh sync --trust`. Each
+approved guidance entry is published in the format of every tool listed in
+`harnesses`, so the tool loads it for the matching code by itself:
+
+| Tool | Published as |
+| --- | --- |
+| Claude Code | Skill in `.claude/skills/conmesh-kb-<id>/SKILL.md` |
+| Codex and other tools that read `.agents/skills` | Skill in `.agents/skills/conmesh-kb-<id>/SKILL.md` |
+| Cursor | Rule in `.cursor/rules/conmesh-kb-<id>.mdc`, attached for the entry's scopes |
+| GitHub Copilot | Instructions in `.github/instructions/conmesh-kb-<id>.instructions.md`, applied to the entry's scopes |
+
+Research also proposes project agents (entries with `kind: agent`), such as a
+feature developer for each major part of the code. Once approved, they are
+published as custom agents for Claude Code (`.claude/agents/conmesh-agent-<id>.md`)
+and Codex (`.codex/agents/conmesh-agent-<id>.toml`), each pointing to the
+published guidance for its part of the code. Cursor and Copilot receive the
+guidance only.
+
+Guidance and agents are also listed in a marked "Project knowledge" section of
+`CLAUDE.md` and `AGENTS.md`. Sessions that know nothing about ConMesh, with any
+model, then load the guidance on their own when they work in the matching part
+of the code. Commit these files to share them with your team.
+
+- **Your instructions stay yours:** in a `CLAUDE.md` or `AGENTS.md` you wrote,
+  ConMesh changes only the section between its `BEGIN`/`END CONMESH PROJECT
+  KNOWLEDGE` markers. It refuses to overwrite that section if someone edited it.
+- **Only current, reviewed guidance is published:** proposed entries are not
+  published. When a cited file changes, the entry is withdrawn at the next sync
+  until you review and approve it again. `sync --dry-run` lists every entry it
+  left out and why.
+- **Edit the source, not the copy:** change `.conmesh/knowledge/`, approve it,
+  and sync again. Edits to the published skill files are overwritten.
+
+## Third-party agents and skills
+
+ConMesh can install agents and skills from three kinds of source: the predefined
+packages shipped with ConMesh (`builtin:<id>`), a local folder, or any HTTPS Git
+repository. ConMesh verifies what it copies (manifest, license, file limits, no
+secrets, no executable hooks), but it does not review what a third-party
+package tells your agent to do.
+
+**Packages from a local folder or a Git URL are provided by their authors, not
+by the ConMesh project.** Their authors are responsible for their content,
+license and behaviour. Before you pass `--trust`, read the package's
+instructions and license yourself, and install only packages you trust. The
+ConMesh project and its contributors accept no responsibility for third-party
+packages or for anything an agent does while following them.
 
 ## Implementation status
 

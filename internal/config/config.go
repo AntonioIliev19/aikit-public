@@ -56,7 +56,7 @@ func (c Config) Validate() error {
 	}
 	seen := map[string]bool{}
 	for _, h := range c.Harnesses {
-		if (h != "claude" && h != "codex") || seen[h] {
+		if (h != "claude" && h != "codex" && h != "cursor" && h != "copilot") || seen[h] {
 			return errors.New("invalid or duplicate harness")
 		}
 		seen[h] = true

@@ -37,7 +37,8 @@ harness data policies. Local indexing does not make harness inference offline.
    with relevant scope, then `conmesh_get_knowledge` by ID only when its summary is
    relevant. Respect returned status: manifest claims are not approval. Existing
    approved ADR/team policy outranks recurring code patterns.
-5. Propose one small Markdown topic per domain. Keep observed behavior separate
+5. Propose one small Markdown topic per domain, following "Write for sessions
+   that do not use ConMesh" below. Keep observed behavior separate
    from normative recommendations, explain exceptions/contradictions and mark
    uncertainty. Every claim needs authorized source paths, 1-based line ranges
    and current file digests returned by CONMESH. Never copy excluded or sensitive
@@ -55,6 +56,70 @@ harness data policies. Local indexing does not make harness inference offline.
    reporting success. Present the validated IDs, evidence, and review digests.
    If no proposal can be supported, report the missing evidence instead of
    inventing entries. An empty scaffold alone is not a completed research run.
+8. Finish by telling the user how the guidance reaches other sessions: they
+   review each entry with `conmesh knowledge show <id>`, approve it with
+   `conmesh knowledge approve <id> --reviewed-digest <digest>`, then run
+   `conmesh sync --dry-run` and `conmesh sync --trust`. Sync publishes each
+   approved guidance entry in every configured tool's own format (skills for
+   Claude Code and Codex, `.cursor/rules` for Cursor, `.github/instructions`
+   for GitHub Copilot), publishes approved agent entries as custom agents, and
+   lists both in a marked section of `CLAUDE.md` and `AGENTS.md`. Never run
+   approval or sync yourself.
+
+## Write for sessions that do not use ConMesh
+
+Each approved document becomes a project skill that other sessions load on
+their own: a different model or harness, no ConMesh MCP server, no memory of
+this research. The entry's `summary` becomes the skill description the harness
+uses to decide when to load it, followed by "Use when reading, changing or
+reviewing code in <scopes>". Write so that a session that has only the
+document can do the work the way this team does it.
+
+- **Summary:** one sentence naming the area and the decision it guides, for
+  example "How API controllers validate input and map errors to HTTP
+  responses". Avoid vague summaries such as "Backend notes".
+- **Scopes:** the narrowest directories the guidance applies to, so it loads
+  for the right files and stays out of the way elsewhere.
+- **Open with the rules:** a short list of what to do and what to avoid,
+  written as instructions, before any explanation.
+- **Name the real things:** actual paths, base classes, helpers, libraries and
+  versions, configuration keys, and the commands that build, test and lint
+  this area. Point to one or two representative files to copy from.
+- **Self-contained:** do not refer to ConMesh tools, this research session or
+  other entries by ID; a reader cannot call them. Repeat a fact briefly
+  instead of linking to another entry.
+- **Honest:** say where the codebase is inconsistent and which variant to
+  follow for new code, and mark anything you could not confirm.
+
+Cover the areas a new teammate needs, as separate entries where evidence
+allows: overall architecture and module boundaries; conventions for each layer
+(for example UI components, state, API and data access); how the main
+frameworks and libraries are used here; error handling, logging and
+configuration; testing practice and test locations; build, run and release
+commands.
+
+## Propose project agents
+
+After the guidance entries, propose one to three project agents for the main
+kinds of work in this repository, for example a feature developer for each
+major part of the codebase and a reviewer. Register each as an entry with
+`kind: agent` and `category: normative`. Sync publishes an approved agent as a
+custom agent for Claude Code and Codex (`conmesh-agent-<id>`), and appends the
+list of published guidance whose scopes overlap the agent's scopes, so do not
+copy that guidance into the agent.
+
+- **Summary:** what the agent does and for which part of the code; it becomes
+  the agent's description, which hosts use to choose it.
+- **Scopes:** the code the agent works on.
+- **Document:** the agent's instructions, written to the agent as "you": its
+  role; a step-by-step workflow from reading the relevant guidance to
+  verifying the result; the exact build, test and lint commands for its scope;
+  its definition of done; and what it must not do (for example change public
+  contracts or generated files without asking).
+- **Sources:** cite the files that show the workflow is real, such as the
+  build configuration, test setup and representative code.
+
+Propose an agent only when the guidance and evidence support its workflow.
 
 ## Manifest schema
 
@@ -114,7 +179,8 @@ export function main() {}
   `Get-FileHash -Algorithm SHA256` on PowerShell (lowercase its `Hash` value),
   `sha256sum`, or `shasum -a 256`. Use each source digest from CONMESH's
   evidence result. Do not hash copied snippets or normalize line endings.
-- Use `architecture`, `pattern`, or `example` for `kind`, and `observed` or
+- Use `architecture`, `pattern`, or `example` for `kind` (or `agent` for a
+  project agent, see "Propose project agents"), and `observed` or
   `normative` for `category`. All new entries must have `status: proposed`.
 - Provide at least one scope and one source. `tags` may be empty.
   `languages` and `frameworks` are optional. Use at most 16 values per array.

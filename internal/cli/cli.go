@@ -38,7 +38,7 @@ Commands:
   doctor [--json]                   Show runtime and implementation status
   update --version vX.Y.Z [--check] Verify signed native release; apply unless checking
   update --rollback                Restore retained previous executable
-  init [--harness claude,codex]      Initialize project; indexing defaults off
+  init [--harness claude,codex,cursor,copilot]  Initialize project; indexing defaults off
        [--index | --no-index]        Explicitly enable or disable indexing
   status [--json]                   Show project configuration (always JSON)
   index                             Update explicitly enabled local index

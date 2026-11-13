@@ -461,6 +461,7 @@ func menuPackage(out io.Writer, prompt func(string) string, pick func(string, []
 	}
 	if action != "remove" {
 		args = append(args, "--trust")
+		fmt.Fprintln(out, "  Packages from a folder or URL come from their authors, who are responsible for them, not ConMesh.")
 		fmt.Fprintln(out, "  Review the package instructions and license before confirming.")
 	}
 	fmt.Fprintf(out, "  %s %s %q (%s scope)\n", action, kind, value, scope)
