@@ -23,24 +23,37 @@ var menuOptions = []menuOption{
 	{"Quit", ""},
 }
 
+// Each row draws CONMESH. The shadow is the same shape shifted one cell down and right.
+var wordmark = [...]string{
+	" ###   ###  #   # #   # #####  #### #   #",
+	"#     #   # ##  # ## ## #     #     #   #",
+	"#     #   # # # # # # # ####   ###  #####",
+	"#     #   # #  ## #   # #         # #   #",
+	" ###   ###  #   # #   # ##### ####  #   #",
+}
+
 func menuBanner(t terminal, version string) string {
 	const width = 49
 	border := strings.Repeat("─", width)
-	rows := []string{
-		"    ●",
-		"   ╱│╲",
-		"  ●─┼─●   ConMesh " + version,
-		"   ╲│╱",
-		"    ●",
-		"",
-		"  The Context Intelligence Layer for AI Agents",
-	}
+	green := [...]string{"38;5;22", "38;5;28", "38;5;34", "38;5;35"}
 	var b strings.Builder
 	fmt.Fprintln(&b, "╭"+border+"╮")
-	for _, row := range rows {
-		padded := fmt.Sprintf("%-*s", width, row)
-		fmt.Fprintln(&b, "│"+t.paint("36", padded)+"│")
+	for y := range len(wordmark) + 1 {
+		var row strings.Builder
+		for x := range len(wordmark[0]) + 1 {
+			switch {
+			case y < len(wordmark) && x < len(wordmark[y]) && wordmark[y][x] == '#':
+				row.WriteString(t.paint("38;5;120", "█"))
+			case y > 0 && x > 0 && x-1 < len(wordmark[y-1]) && wordmark[y-1][x-1] == '#':
+				row.WriteString(t.paint(green[min(x/11, len(green)-1)], "▓"))
+			default:
+				row.WriteByte(' ')
+			}
+		}
+		fmt.Fprintf(&b, "│  %s%s│\n", row.String(), strings.Repeat(" ", width-3-len(wordmark[0])))
 	}
+	fmt.Fprintf(&b, "│  %-47s│\n", "CONMESH "+version)
+	fmt.Fprintf(&b, "│  %-47s│\n", "Codebase-aware context for AI agents")
 	fmt.Fprintln(&b, "╰"+border+"╯")
 	return b.String()
 }

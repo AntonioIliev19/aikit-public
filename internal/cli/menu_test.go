@@ -25,9 +25,9 @@ func TestMenu(t *testing.T) {
 		t.Fatalf("commands = %v, want %v", calls, want)
 	}
 	if strings.Contains(menuBanner(terminal{}, "dev"), "\x1b") ||
-		!strings.Contains(out.String(), "ConMesh dev") ||
-		!strings.Contains(out.String(), "●─┼─●") {
-		t.Fatal("menu banner is missing the plain version label or mesh mark")
+		!strings.Contains(out.String(), "CONMESH dev") ||
+		!strings.Contains(out.String(), "▓") {
+		t.Fatal("menu banner is missing the plain version label or single shadow")
 	}
 }
 

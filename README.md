@@ -4,7 +4,23 @@
   <p>Local-first • Agent-agnostic • Codebase-aware</p>
 </div>
 
-ConMesh is a cross-platform, local-first command-line toolkit that manages reusable agents and skills, studies repository architecture, saves small evidence-backed knowledge packs, and exposes a shared hybrid code index to Claude Code and Codex via MCP.
+**Give coding agents context about the codebase you already have.** ConMesh builds an opt-in local index for code search and symbol lookup. Its Research Agent uses repository evidence to draft scoped Markdown guidance about architecture, conventions, and examples for review. This is designed for established codebases, including enterprise projects where teams want control over what gets indexed and which guidance gets approved.
+
+ConMesh also manages agents and skills and can expose its index over MCP to Claude Code, Codex, and other compatible hosts.
+
+## Fast install with your coding agent
+
+Paste this prompt into a coding-agent session with terminal access.
+
+```text
+Set up ConMesh using the steering guide at
+https://raw.githubusercontent.com/AntonioIliev19/conmesh/main/INSTALL.md
+Read it first. Ask me whether I want CLI-only installation or setup for one or more repositories.
+Show the plan and get my confirmation before installing or changing anything.
+Ask separately whether I want to index any repository, and confirm each exact path first.
+```
+
+The [installation steering guide](INSTALL.md) also works as a manual checklist.
 
 ## Install ConMesh
 
