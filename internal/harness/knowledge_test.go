@@ -19,7 +19,12 @@ func sha(data string) string { h := sha256.Sum256([]byte(data)); return hex.Enco
 
 // isolateApprovals keeps knowledge approval receipts in a test directory.
 func isolateApprovals(t *testing.T) {
-	dir := t.TempDir()
+	// Resolve links (macOS temp folders live behind /var -> /private/var);
+	// ConMesh rightly refuses an approvals folder reached through a link.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("APPDATA", dir)
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	t.Setenv("HOME", dir)
