@@ -5,12 +5,14 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -60,8 +62,8 @@ func TestVerifiedUpdateRollback(t *testing.T) {
 	if string(got) != "new executable" {
 		t.Fatal("replacement missing")
 	}
-	if err := client.Apply(context.Background(), "v1.2.3", path); err == nil {
-		t.Fatal("overwrote retained backup")
+	if err := client.Apply(context.Background(), "v1.2.3", path); !errors.Is(err, ErrCurrent) {
+		t.Fatal("re-applying the installed release must be refused", err)
 	}
 	if err := Rollback(context.Background(), path); err != nil {
 		t.Fatal(err)
@@ -71,6 +73,75 @@ func TestVerifiedUpdateRollback(t *testing.T) {
 		t.Fatal("rollback lost original")
 	}
 }
+
+// Each update replaces the previous rollback step, so updates keep working.
+func TestSuccessiveUpdatesKeepOneRollbackStep(t *testing.T) {
+	path := filepath.Join(physical(t), "conmesh.exe")
+	os.WriteFile(path, []byte("v1 executable"), 0755)
+	for _, payload := range []string{"v2 executable", "v3 executable", "v4 executable"} {
+		c, _ := release(t, []byte(payload), nil)
+		if err := c.Apply(context.Background(), "v1.2.3", path); err != nil {
+			t.Fatalf("update to %q: %v", payload, err)
+		}
+	}
+	if err := Rollback(context.Background(), path); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "v3 executable" {
+		t.Fatalf("rollback restored %q", got)
+	}
+	for _, leftover := range []string{".previous", ".update.json", ".staged"} {
+		if _, err := os.Stat(path + leftover); !os.IsNotExist(err) {
+			t.Fatalf("%s left behind after rollback", leftover)
+		}
+	}
+	// After a rollback there is no state, so the next update works too.
+	c, _ := release(t, []byte("v5 executable"), nil)
+	if err := c.Apply(context.Background(), "v1.2.3", path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// State that does not prove a finished update is kept and reported.
+func TestUnrecognisedUpdateStateIsKept(t *testing.T) {
+	for name, setup := range map[string]func(path string){
+		"backup without receipt": func(p string) { os.WriteFile(p+".previous", []byte("old"), 0755) },
+		"staged file":            func(p string) { os.WriteFile(p+".staged", []byte("half"), 0755) },
+		"receipt for another executable": func(p string) {
+			os.WriteFile(p+".update.json", []byte(`{"previous_sha256":"`+digest([]byte("old"))+`","installed_sha256":"`+digest([]byte("other"))+`"}`), 0600)
+			os.WriteFile(p+".previous", []byte("old"), 0755)
+		},
+		"tampered backup": func(p string) {
+			os.WriteFile(p+".update.json", []byte(`{"previous_sha256":"`+digest([]byte("old"))+`","installed_sha256":"`+digest([]byte("current"))+`"}`), 0600)
+			os.WriteFile(p+".previous", []byte("tampered"), 0755)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			c, _ := release(t, []byte("new"), nil)
+			path := filepath.Join(physical(t), "conmesh.exe")
+			os.WriteFile(path, []byte("current"), 0755)
+			setup(path)
+			before, _ := os.ReadDir(filepath.Dir(path))
+			err := c.Apply(context.Background(), "v1.2.3", path)
+			if err == nil || !strings.Contains(err.Error(), "UPDATE_STATE") || !strings.Contains(err.Error(), "conmesh.exe.previous") {
+				t.Fatal("unrecognised state not reported", err)
+			}
+			after, _ := os.ReadDir(filepath.Dir(path))
+			if got, _ := os.ReadFile(path); string(got) != "current" || len(after) != len(before) {
+				t.Fatal("unrecognised state or executable changed")
+			}
+		})
+	}
+	// A receipt whose backup is already gone is a finished update.
+	c, _ := release(t, []byte("new"), nil)
+	path := filepath.Join(physical(t), "conmesh.exe")
+	os.WriteFile(path, []byte("current"), 0755)
+	os.WriteFile(path+".update.json", []byte(`{"previous_sha256":"`+digest([]byte("old"))+`","installed_sha256":"`+digest([]byte("current"))+`"}`), 0600)
+	if err := c.Apply(context.Background(), "v1.2.3", path); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestReleaseTrustBoundaries(t *testing.T) {
 	for _, test := range []struct {
 		name   string

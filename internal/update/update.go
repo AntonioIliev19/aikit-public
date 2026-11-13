@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -180,14 +181,15 @@ func (c *Client) Apply(ctx context.Context, version, executable string) error {
 	}
 	defer unlock(r)
 	backup, stage, meta := name+".previous", name+".staged", name+".update.json"
-	for _, n := range []string{backup, stage, meta} {
-		if _, err := r.Lstat(n); !os.IsNotExist(err) {
-			return errors.New("previous update state exists; rollback or review it first")
-		}
-	}
 	old, err := read(r, name)
 	if err != nil {
 		return ErrInstall
+	}
+	if digest(old) == digest(data) {
+		return ErrCurrent
+	}
+	if err := clearFinishedUpdate(r, name, digest(old)); err != nil {
+		return err
 	}
 	originalInfo, err := r.Lstat(name)
 	if err != nil {
@@ -229,6 +231,45 @@ func (c *Client) Apply(ctx context.Context, version, executable string) error {
 			r.Remove(meta)
 		}
 		return ErrInstall
+	}
+	return nil
+}
+
+// ErrCurrent reports that the verified release is the executable already installed.
+var ErrCurrent = errors.New("UPDATE_CURRENT: this release is already installed")
+
+// clearFinishedUpdate removes the rollback copy and receipt left by an earlier
+// update, so each update keeps exactly one rollback step. It only does so when
+// the receipt proves that update finished: the receipt names the executable now
+// installed and, if the backup is still there, the backup it recorded. Any other
+// leftover state is kept and reported for review.
+func clearFinishedUpdate(r *os.Root, name, current string) error {
+	backup, stage, meta := name+".previous", name+".staged", name+".update.json"
+	exists := func(n string) bool { _, err := r.Lstat(n); return !os.IsNotExist(err) }
+	hasBackup, hasStage, hasMeta := exists(backup), exists(stage), exists(meta)
+	if !hasBackup && !hasStage && !hasMeta {
+		return nil
+	}
+	review := fmt.Errorf("UPDATE_STATE: unfinished or unrecognised update files next to %s (%s, %s, %s); run conmesh update --rollback or review and remove them", name, backup, stage, meta)
+	if hasStage || !hasMeta {
+		return review
+	}
+	raw, err := security.ReadFileBounded(r, meta, 1024)
+	var record receipt
+	if err != nil || config.Decode(raw, &record) != nil || record.Installed != current {
+		return review
+	}
+	if hasBackup {
+		previous, err := read(r, backup)
+		if err != nil || digest(previous) != record.Previous {
+			return review
+		}
+		if r.Remove(backup) != nil {
+			return review
+		}
+	}
+	if r.Remove(meta) != nil {
+		return review
 	}
 	return nil
 }
