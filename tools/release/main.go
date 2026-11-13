@@ -65,7 +65,7 @@ func windowsInstaller(out, source, artifact string) error {
 			return err
 		}
 	}
-	return put(out, "INSTALL.txt", []byte("Private Windows artifact; no public release or authenticity guarantee is implied.\r\nAfter verifying the artifact's source, double-click install.cmd or run:\r\n  install.cmd "+artifact+"\r\nThen restart the terminal application. No administrator or manual PATH setup is needed.\r\nPowerShell current-session install: & .\\install.ps1 -BinaryPath .\\"+artifact+"\r\nA local execution policy may require process-scoped Bypass; enterprise policy still applies.\r\n"))
+	return put(out, "INSTALL.txt", []byte("ConMesh Windows installation\r\nAfter verifying the artifact's source, double-click install.cmd or run:\r\n  install.cmd "+artifact+"\r\nThen restart the terminal application. No administrator or manual PATH setup is needed.\r\nPowerShell current-session install: & .\\install.ps1 -BinaryPath .\\"+artifact+"\r\nA local execution policy may require process-scoped Bypass; enterprise policy still applies.\r\n"))
 }
 
 func nativeTarget(env map[string]string) error {
@@ -331,7 +331,7 @@ func run() error {
 	if err = put(out, "build-environment.json", envRaw); err != nil {
 		return err
 	}
-	provenance := map[string]any{"schema": 1, "repository": update.Repository, "artifact": artifact, "sha256": m.SHA256, "go": runtime.Version(), "signing_public_key": publicKey, "publication": "BLOCKED: private preparation only; owner product LICENSE, approved signing trust and native/security gates required", "reproducibility": "Pinned modules, trimpath, recorded build/VCS/environment metadata; native compiler reproducibility not claimed"}
+	provenance := map[string]any{"schema": 1, "repository": update.Repository, "artifact": artifact, "sha256": m.SHA256, "go": runtime.Version(), "signing_public_key": publicKey, "publication": "Staged artifact; publish after signature, platform, and privacy verification", "reproducibility": "Pinned modules, trimpath, recorded build/VCS/environment metadata; native compiler reproducibility not claimed"}
 	p, _ := json.MarshalIndent(provenance, "", "  ")
 	if err = put(out, "provenance.json", append(p, '\n')); err != nil {
 		return err

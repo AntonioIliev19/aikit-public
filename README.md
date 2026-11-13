@@ -8,8 +8,9 @@ ConMesh is a cross-platform, local-first command-line toolkit that manages reusa
 
 ## Install ConMesh
 
-ConMesh is a native executable. Installing an existing trusted Windows binary
-requires no Go, Node.js, administrator privileges, model or account. Build the executable from source using the instructions below.
+Download the Windows x64 ZIP from [GitHub Releases](https://github.com/AntonioIliev19/conmesh/releases/latest), extract it, and run `install.cmd`. Open a new terminal and run `conmesh --version`. The installer uses your user account and adds ConMesh to your user PATH.
+
+For a source build or a trusted executable you already have, use the steps below.
 
 In your own PowerShell window, from this repository with `conmesh.exe` in its root:
 
@@ -140,7 +141,7 @@ TypeScript/C# symbols, authorized search, read-only MCP stdio and owned project
 sync for Codex/Claude, scoped knowledge with explicit approval, a portable
 in-chat research skill, opt-in local semantic retrieval and audited
 last-resort fallback.
-Signed updates require a production signing key. Source builds have no production signing key configured.
+GitHub release binaries include the trusted public key for signed updates. Source builds require a one-time install of a release binary to use self-update.
 
 ## Build from source
 

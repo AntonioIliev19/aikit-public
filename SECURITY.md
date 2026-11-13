@@ -1,7 +1,6 @@
 # Security policy
 
-ConMesh is pre-release software. No production support
-window, response-time guarantee or public release is currently promised.
+ConMesh is distributed through GitHub Releases. Support windows and response times are not guaranteed.
 
 Report a suspected vulnerability privately to the repository owner. Use GitHub
 private vulnerability reporting if the owner has enabled it; otherwise request a
@@ -15,8 +14,7 @@ code to the harness provider. Secret detection covers tested patterns and is not
 a guarantee that every credential is detected.
 
 Release updates require the compiled owner-approved Ed25519 public key, signed
-bounded platform manifests and matching artifact SHA-256/size. This checkout has
-no production release key, so remote updates fail closed. Project configuration
+bounded platform manifests and matching artifact SHA-256/size. Published release binaries include the trusted public key. Source builds without that key reject remote updates. Project configuration
 cannot establish signing trust. The executable directory and its local rollback
 receipt are trusted installation state; another process with write access there
 can already replace the CLI. Avoid shared writable installation directories.
