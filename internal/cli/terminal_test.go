@@ -126,9 +126,20 @@ func TestProgressPercentageAndCleanup(t *testing.T) {
 		t.Fatal("dishonest/unclean progress", out.String())
 	}
 	out.Reset()
-	p.update(index.Progress{Phase: "done", Scanned: 2, Processed: 2, Malformed: 1})
-	if !strings.Contains(out.String(), "100%") || !strings.Contains(out.String(), "Warning:") || !strings.Contains(out.String(), "elapsed") {
-		t.Fatal("missing completed summary", out.String())
+	p.update(index.Progress{Phase: "done", Scanned: 5, Processed: 5, Indexed: 2, Malformed: 1, PlainText: 1, Skipped: 3, Refreshed: true,
+		SkipReasons: index.SkipReasons{HardDenied: 2, SensitiveContent: 1}})
+	got := out.String()
+	if !strings.Contains(got, "100%") || !strings.Contains(got, "elapsed") || strings.Contains(got, "Warning:") ||
+		!strings.Contains(got, "Indexed as plain text without symbols: 1 (syntax errors 1; over parser limits 0)") ||
+		!strings.Contains(got, "Skipped: built-in denied name 2; sensitive content 1\n") ||
+		!strings.Contains(got, "all files were re-extracted") {
+		t.Fatal("missing completed summary", got)
+	}
+	out.Reset()
+	p = indexProgress{writer: &out, terminal: terminal{true, false}, cancel: func() {}}
+	p.update(index.Progress{Phase: "done", Scanned: 1, Processed: 1, SemanticCleanupWarning: true})
+	if got := out.String(); !strings.Contains(got, "Warning: semantic cleanup") || strings.Contains(got, "Skipped:") || strings.Contains(got, "plain text") {
+		t.Fatal("false completed summary", got)
 	}
 	cancelled := false
 	p = indexProgress{writer: brokenWriter{}, cancel: func() { cancelled = true }}

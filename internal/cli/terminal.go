@@ -12,13 +12,16 @@ import (
 
 type terminal struct{ live, color bool }
 
-func terminalFor(w io.Writer) terminal {
+func terminalFor(w io.Writer) terminal { return terminalForOptions(w, false) }
+
+// terminalForOptions checks one stream; stdout and stderr are decided separately.
+func terminalForOptions(w io.Writer, noColorFlag bool) terminal {
 	f, ok := w.(*os.File)
 	if !ok {
 		return terminal{}
 	}
 	_, noColor := os.LookupEnv("NO_COLOR")
-	t := terminalPolicy(isTerminal(f), os.Getenv("TERM"), noColor)
+	t := streamPolicy(isTerminal(f), os.Getenv("TERM"), noColor, noColorFlag)
 	if t.color {
 		t.color = enableColor(f)
 	}
@@ -85,6 +88,42 @@ func progressPercent(p index.Progress) int {
 	return min(99, p.Processed*100/p.Scanned)
 }
 
+// indexSummary is the human summary of a finished index run. Files with syntax
+// errors or over parser limits are still indexed, as plain text without symbols,
+// so they are reported as a note and not as a warning.
+func indexSummary(t terminal, report index.Progress) string {
+	out := fmt.Sprintf("Indexed %d; unchanged %d; skipped %d; malformed %d; limited %d; deleted %d; elapsed %.2fs\n", report.Indexed, report.Unchanged, report.Skipped, report.Malformed, report.Limited, report.Deleted, float64(report.ElapsedMillis)/1000)
+	if report.Refreshed {
+		out += "Index format changed; all files were re-extracted\n"
+	}
+	if report.PlainText > 0 {
+		out += fmt.Sprintf("Indexed as plain text without symbols: %d (syntax errors %d; over parser limits %d)\n", report.PlainText, report.Malformed, report.Limited)
+	}
+	if report.Skipped > 0 {
+		r := report.SkipReasons
+		var parts []string
+		for _, reason := range []struct {
+			label string
+			count int
+		}{
+			{"ignored", r.Ignored}, {"built-in denied name", r.HardDenied}, {"not a regular file", r.UnsupportedEntry},
+			{"too large", r.TooLarge}, {"sensitive content", r.SensitiveContent}, {"binary", r.Binary},
+			{"over parser limits", r.ParserLimit}, {"changed during indexing", r.Changed}, {"unreadable", r.Unreadable},
+		} {
+			if reason.count > 0 {
+				parts = append(parts, fmt.Sprintf("%s %d", reason.label, reason.count))
+			}
+		}
+		if len(parts) > 0 {
+			out += "Skipped: " + strings.Join(parts, "; ") + "\n"
+		}
+	}
+	if report.SemanticCleanupWarning {
+		out += t.paint("33", "Warning: semantic cleanup did not complete") + "\n"
+	}
+	return out
+}
+
 type indexProgress struct {
 	writer      io.Writer
 	terminal    terminal
@@ -126,10 +165,7 @@ func (p *indexProgress) update(report index.Progress) {
 		line += "\n"
 	}
 	if report.Phase == "done" {
-		line += fmt.Sprintf("Indexed %d; unchanged %d; skipped %d; malformed %d; limited %d; deleted %d; elapsed %.2fs\n", report.Indexed, report.Unchanged, report.Skipped, report.Malformed, report.Limited, report.Deleted, float64(report.ElapsedMillis)/1000)
-		if report.Malformed > 0 || report.Limited > 0 || report.SemanticCleanupWarning {
-			line += p.terminal.paint("33", fmt.Sprintf("Warning: malformed %d; limited %d; semantic cleanup warning: %t", report.Malformed, report.Limited, report.SemanticCleanupWarning)) + "\n"
-		}
+		line += indexSummary(p.terminal, report)
 	}
 	_, p.err = io.WriteString(p.writer, line)
 	if p.err != nil {

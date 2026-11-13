@@ -8,6 +8,8 @@
 
 ConMesh also manages agents and skills and can expose its index over MCP to Claude Code, Codex, and other compatible hosts.
 
+Browse the [predefined agents](agents/) for Angular, .NET, and repository research.
+
 ## Fast install with your coding agent
 
 Paste this prompt into a coding-agent session with terminal access.
@@ -51,7 +53,39 @@ conmesh --version
 conmesh --help
 ```
 
-Run `conmesh` or `conmesh menu` in a terminal. Use Up/Down to navigate, Enter to select, and Backspace to go back.
+Run `conmesh` or `conmesh menu` in a terminal. The menu shows the current workspace
+and version, then groups its items under **Packages** (Install, Update, List,
+Uninstall), **Project** (Workspace, Doctor) and **ConMesh** (Help, Self-update,
+Quit). **Update** updates an installed agent or skill; **Self-update** checks for
+and installs a verified ConMesh release. The "same as" line under the menu shows
+the equivalent command for the highlighted item.
+
+| Key | Action |
+|---|---|
+| Up / Down | Move the selection |
+| Enter | Select |
+| Esc or Backspace | Go back (at the top level, leave the menu) |
+| `q` | Quit the menu |
+| Ctrl-C | Exit immediately |
+
+Opening the menu makes no network request unless `CONMESH_AUTO_UPDATE_CHECK=1`
+is set, in which case it checks for a release in the background at most once a
+day. When stdin is not a terminal (for
+example `echo x | conmesh`), or with `--no-input`, `conmesh` prints the command
+reference instead of opening the menu.
+
+Scripting options:
+
+- `--json` gives machine-readable output for `doctor`, `agent list` and
+  `skill list`. `status` always prints JSON and also accepts `--json`.
+- `--no-input` never prompts. `conmesh --no-input menu` fails and names the flag;
+  a mistyped command only prints its suggestion.
+- Colour is off when `NO_COLOR` is set, `TERM=dumb`, `--no-color` is passed, or the
+  output is not a terminal. Each of stdout and stderr is checked separately.
+- A mistyped command such as `conmesh serch` suggests the closest real command. In
+  a terminal it asks `[y/N]` (default No); otherwise it only prints the suggestion
+  and exits with status 2.
+
 If command
 discovery fails, check that the installed file exists and run it directly:
 
@@ -99,7 +133,18 @@ conmesh index
 This builds the searchable index of allowed files. Run it again after source
 changes. ConMesh reuses entries for unchanged files. To try the index, run
 `conmesh search "request handler" --limit 10` or `conmesh symbol Handler`, using a
-query or exact symbol name from your project.
+query or exact symbol name from your project. Search also matches the parts of
+camelCase and snake_case names, so `handler` finds `requestHandler`.
+
+A file with syntax errors, or one over the parser limits, is still indexed as
+plain text without symbols, after the same ignore and secret checks as every
+other file. The summary line reports how many, and why any file was skipped.
+
+The index format is upgraded in place the first time a newer ConMesh writes to
+it, and all files are re-extracted once. An older ConMesh cannot read the
+upgraded index. If you go back to an older version, for example with
+`conmesh update --rollback`, delete `.conmesh/state/index.sqlite` and its
+`-wal` and `-shm` files, then run `conmesh index` again.
 
 ### 3. Install the skill and connect your agent tool
 

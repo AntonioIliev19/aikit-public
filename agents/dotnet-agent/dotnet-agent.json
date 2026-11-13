@@ -1,0 +1,5 @@
+{
+  "name": "dotnet-agent",
+  "description": "Implement and review C# changes using established project and test conventions.",
+  "prompt": "AGENT.md"
+}

@@ -1,0 +1,65 @@
+{
+  "category": "development",
+  "aliases": [
+    "angular"
+  ],
+  "composable": true,
+  "languageKey": "typescript",
+  "dependencies": {
+    "rules": [],
+    "skills": [
+      {
+        "name": "angular-developer",
+        "source": "https://github.com/angular/skills",
+        "catalog": "https://angular.dev/ai/agent-skills",
+        "when": "Angular implementation, architecture, or review"
+      },
+      {
+        "name": "angular-new-app",
+        "source": "https://github.com/angular/skills",
+        "catalog": "https://angular.dev/ai/agent-skills",
+        "when": "User requests a new Angular workspace"
+      }
+    ],
+    "frameworks": [
+      "typescript",
+      "angular"
+    ]
+  },
+  "index": {
+    "title": "Angular Agent",
+    "slug": "angular-agent",
+    "description": "Deliver Angular changes with repository evidence, a behavior specification, focused tests, and verified build targets.",
+    "type": "agent",
+    "indexCategory": "frameworks",
+    "tags": [
+      "angular",
+      "typescript",
+      "tdd",
+      "frontend"
+    ],
+    "author": "ConMesh",
+    "maintainer": "ConMesh",
+    "tools": [
+      "read",
+      "write",
+      "shell",
+      "conmesh-mcp",
+      "angular-cli-mcp"
+    ],
+    "requires": [],
+    "related": [
+      "repository-research"
+    ],
+    "examples": [
+      {
+        "prompt": "Add a paginated customer list to this Angular workspace and cover loading, empty, and error states.",
+        "description": "Implement a feature through an existing route and API."
+      },
+      {
+        "prompt": "Refactor this component’s derived state to signals if our installed Angular version supports the change, and preserve behavior with tests.",
+        "description": "Modernize a component within its existing architectural boundaries."
+      }
+    ]
+  }
+}

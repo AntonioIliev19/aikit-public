@@ -1,0 +1,5 @@
+{
+  "name": "repository-research",
+  "description": "Map an existing repository and draft evidence-backed guidance for human review.",
+  "prompt": "AGENT.md"
+}

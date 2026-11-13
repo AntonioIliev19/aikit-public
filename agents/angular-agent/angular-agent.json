@@ -1,0 +1,56 @@
+{
+  "name": "angular-agent",
+  "description": "Deliver Angular changes with repository evidence, a behavior specification, focused tests, and verified build targets.",
+  "prompt": "file://./angular-agent.md",
+  "mcpServers": {
+    "angular-cli": {
+      "command": "ng",
+      "args": [
+        "mcp",
+        "--read-only",
+        "--local-only"
+      ],
+      "disabled": true,
+      "autoApprove": []
+    }
+  },
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "conmesh-mcp",
+    "angular-cli-mcp"
+  ],
+  "allowedTools": [
+    "read"
+  ],
+  "toolsSettings": {
+    "write": {
+      "allowedPaths": [
+        "src/**",
+        "apps/**",
+        "libs/**",
+        "projects/**",
+        "e2e/**",
+        "tests/**"
+      ],
+      "deniedPaths": [
+        ".git/**",
+        "**/.env*",
+        "**/*.pem",
+        "**/*.key",
+        "**/secrets/**"
+      ]
+    },
+    "shell": {
+      "allowedCommands": [],
+      "autoAllowReadonly": false
+    }
+  },
+  "resources": [
+    "file://./modules/base-agent.md",
+    "file://./modules/typescript-module.md",
+    "file://./modules/angular-module.md"
+  ],
+  "welcomeMessage": "Tell me which Angular project to work in and what behavior you want to change."
+}

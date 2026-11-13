@@ -1,0 +1,20 @@
+{
+  "category": "development",
+  "languageKey": "csharp",
+  "index": {
+    "title": ".NET Agent",
+    "slug": "dotnet-agent",
+    "description": "Implement and review C# changes using established project and test conventions.",
+    "type": "agent",
+    "tags": [
+      "dotnet",
+      "csharp",
+      "backend"
+    ],
+    "examples": [
+      {
+        "prompt": "Add validation to this API endpoint and test both success and rejection through its normal entry point."
+      }
+    ]
+  }
+}

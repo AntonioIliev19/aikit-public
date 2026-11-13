@@ -1,0 +1,20 @@
+{
+  "category": "research",
+  "languageKey": "agnostic",
+  "index": {
+    "title": "Repository Research Agent",
+    "slug": "repository-research",
+    "description": "Map an existing repository and draft evidence-backed guidance for human review.",
+    "type": "agent",
+    "tags": [
+      "architecture",
+      "repository",
+      "knowledge"
+    ],
+    "examples": [
+      {
+        "prompt": "Research the checkout flow and draft a short architecture note with citations."
+      }
+    ]
+  }
+}

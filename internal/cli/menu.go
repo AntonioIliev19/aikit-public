@@ -6,80 +6,203 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/AntonioIliev19/conmesh/internal/config"
+	"github.com/AntonioIliev19/conmesh/internal/index"
+	"github.com/AntonioIliev19/conmesh/internal/update"
 )
 
+// menuOptions is the main menu. sameAs holds the equivalent non-interactive
+// commands, using the real subcommand names, shown for the highlighted item.
 var menuOptions = []menuOption{
-	{"Install", "Add an agent or skill"},
-	{"Uninstall", "Remove a managed package"},
-	{"Update package", "Update an agent or skill"},
-	{"List", "Show installed agents and skills"},
-	{"Workspace", "Show ConMesh project status"},
-	{"Doctor", "Check runtime capabilities"},
-	{"Help", "Show the command reference"},
-	{"Update ConMesh", "Check for and install a verified release"},
-	{"Quit", ""},
+	{id: "install", group: "Packages", subtitle: "agents and skills", name: "Install", description: "Add an agent or skill",
+		sameAs: []string{"conmesh skill add <source> --trust", "conmesh agent add <source> --trust"}},
+	{id: "update", group: "Packages", name: "Update", description: "Update an installed agent or skill",
+		sameAs: []string{"conmesh package update <id> --type skill|agent --trust"}},
+	{id: "list", group: "Packages", name: "List", description: "Show what is installed",
+		sameAs: []string{"conmesh agent list", "conmesh skill list"}, sameAsJoin: "and"},
+	{id: "uninstall", group: "Packages", name: "Uninstall", description: "Remove a managed package",
+		sameAs: []string{"conmesh skill remove <id>", "conmesh agent remove <id>"}},
+	{id: "workspace", group: "Project", name: "Workspace", description: "Index and harness status",
+		sameAs: []string{"conmesh status"}},
+	{id: "doctor", group: "Project", name: "Doctor", description: "Check runtime capabilities",
+		sameAs: []string{"conmesh doctor"}},
+	{id: "help", group: "ConMesh", name: "Help", description: "Command reference",
+		sameAs: []string{"conmesh --help"}},
+	{id: "self-update", group: "ConMesh", name: "Self-update", description: "Check for and install a verified release",
+		sameAs: []string{"conmesh update --version <vX.Y.Z>"}},
+	{id: "quit", group: "ConMesh", name: "Quit"},
 }
 
-// Each row draws CONMESH. The shadow is the same shape shifted one cell down and right.
-var wordmark = [...]string{
-	" ###   ###  #   # #   # #####  #### #   #",
-	"#     #   # ##  # ## ## #     #     #   #",
-	"#     #   # # # # # # # ####   ###  #####",
-	"#     #   # #  ## #   # #         # #   #",
-	" ###   ###  #   # #   # ##### ####  #   #",
+// menuInfo carries facts gathered once when the menu opens. No network is used.
+type menuInfo struct {
+	width     int
+	workspace workspaceStatus
 }
 
-func menuBanner(t terminal, version string) string {
-	const width = 49
-	border := strings.Repeat("─", width)
-	green := [...]string{"38;5;22", "38;5;28", "38;5;34", "38;5;35"}
-	var b strings.Builder
-	fmt.Fprintln(&b, "╭"+border+"╮")
-	for y := range len(wordmark) + 1 {
-		var row strings.Builder
-		for x := range len(wordmark[0]) + 1 {
-			switch {
-			case y < len(wordmark) && x < len(wordmark[y]) && wordmark[y][x] == '#':
-				row.WriteString(t.paint("38;5;120", "█"))
-			case y > 0 && x > 0 && x-1 < len(wordmark[y-1]) && wordmark[y-1][x-1] == '#':
-				row.WriteString(t.paint(green[min(x/11, len(green)-1)], "▓"))
-			default:
-				row.WriteByte(' ')
-			}
-		}
-		fmt.Fprintf(&b, "│  %s%s│\n", row.String(), strings.Repeat(" ", width-3-len(wordmark[0])))
+type workspaceStatus struct {
+	state     string // "", "none" (no project), "error", "ok"
+	name      string
+	indexing  bool
+	present   bool
+	statusErr bool
+	files     int
+	harnesses []string
+}
+
+// loadWorkspace reads the same configuration and index status as `conmesh status`.
+// index.Status never creates state.
+func loadWorkspace(ctx context.Context, cwd string) workspaceStatus {
+	if cwd == "" {
+		return workspaceStatus{state: "error"}
 	}
-	fmt.Fprintf(&b, "│  %-47s│\n", "CONMESH "+version)
-	fmt.Fprintf(&b, "│  %-47s│\n", "Codebase-aware context for AI agents")
-	fmt.Fprintln(&b, "╰"+border+"╯")
+	project, c, err := config.Find(cwd)
+	if errors.Is(err, config.ErrNoProject) {
+		return workspaceStatus{state: "none"}
+	}
+	if err != nil {
+		return workspaceStatus{state: "error"}
+	}
+	ws := workspaceStatus{state: "ok", name: printable(filepath.Base(project)), indexing: c.Indexing.Enabled, harnesses: c.Harnesses}
+	core, err := index.New(project)
+	if err != nil {
+		ws.statusErr = true
+		return ws
+	}
+	status, err := core.Status(ctx)
+	if err != nil {
+		ws.statusErr = true
+		return ws
+	}
+	ws.indexing, ws.present, ws.files = status.Enabled, status.Present, status.Files
+	return ws
+}
+
+func printable(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
+func menuHeader(t terminal, info menuInfo, version string, updates menuUpdates, checking bool) string {
+	g := glyphsFor(t)
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s %s %s\n", t.paint(styleAccent, g.brand), t.paint("1;34", "ConMesh"), t.paint(styleDim, version+"   context layer for AI agents"))
+	fmt.Fprintln(&b, t.paint(styleDim, menuRule(g, info.width)))
+
+	var rows [2]statusRow
+	ws := info.workspace
+	switch ws.state {
+	case "ok":
+		detail := "indexing off"
+		switch {
+		case ws.statusErr:
+			detail = "index status unavailable"
+		case ws.indexing && !ws.present:
+			detail = "index not built"
+		case ws.indexing:
+			detail = "index ready, " + thousands(ws.files) + " files"
+		}
+		rows[0] = statusRow{glyph: t.paint(styleOK, g.on), label: "workspace", value: ws.name, detail: detail + ", " + harnessList(ws.harnesses)}
+	case "none":
+		rows[0] = statusRow{glyph: t.paint(styleDim, g.off), label: "no workspace", detail: "run " + t.paint(styleAccent, "conmesh init")}
+	default:
+		rows[0] = statusRow{glyph: t.paint(styleDim, g.off), label: "workspace", value: "unavailable", detail: "run " + t.paint(styleAccent, "conmesh status") + " for details"}
+	}
+	rows[1] = versionRow(t, g, version, updates)
+	if checking {
+		if rows[1].detail != "" {
+			rows[1].detail += ", "
+		}
+		rows[1].detail += "checking for updates..."
+	}
+	labelWidth := max(cells(rows[0].label), cells(rows[1].label))
+	valueWidth := max(cells(rows[0].value), cells(rows[1].value))
+	for _, r := range rows {
+		labelStyle := styleDim
+		if r.warn {
+			labelStyle = styleWarn
+		}
+		line := r.glyph + " " + t.paint(labelStyle, pad(r.label, labelWidth))
+		if r.value != "" {
+			line += "  " + t.paint(styleBold, pad(r.value, valueWidth))
+		}
+		if r.detail != "" {
+			line += "  " + t.paint(styleDim, r.detail)
+		}
+		fmt.Fprintln(&b, strings.TrimRight(line, " "))
+	}
+	fmt.Fprintln(&b)
 	return b.String()
 }
 
-func runMenu(input io.Reader, out io.Writer, t terminal, version string, run func([]string), updates menuUpdates, autoCheck bool, raw func() (func() error, error)) error {
+// versionRow uses only the cached result of the last update check.
+type statusRow struct {
+	glyph, label, value, detail string
+	warn                        bool
+}
+
+func versionRow(t terminal, g glyphSet, installed string, updates menuUpdates) statusRow {
+	if updates.latest == nil {
+		return statusRow{glyph: t.paint(styleDim, g.off), label: "version", value: installed, detail: "self-update unavailable in this build"}
+	}
+	cached := updates.cached
+	if cached.Checked.IsZero() || !releaseVersion(cached.Version) {
+		return statusRow{glyph: t.paint(styleDim, g.off), label: "version", value: installed}
+	}
+	checked := checkedAt(cached.Checked)
+	switch {
+	case update.Newer(cached.Version, installed):
+		return statusRow{glyph: t.paint(styleWarn, g.up), label: "update available", value: cached.Version, detail: "installed " + installed + ", checked " + checked, warn: true}
+	case releaseVersion(installed):
+		return statusRow{glyph: t.paint(styleOK, g.ok), label: "up to date", value: installed, detail: "last checked " + checked}
+	default:
+		return statusRow{glyph: t.paint(styleDim, g.off), label: "version", value: installed, detail: "latest verified " + cached.Version + ", checked " + checked}
+	}
+}
+
+func releaseVersion(v string) bool { return v == "v0.0.0" || update.Newer(v, "v0.0.0") }
+
+func checkedAt(when time.Time) string {
+	local, now := when.Local(), time.Now()
+	if local.Year() == now.Year() && local.YearDay() == now.YearDay() {
+		return local.Format("15:04")
+	}
+	return local.Format("2006-01-02 15:04")
+}
+
+func menuRule(g glyphSet, width int) string {
+	n := 46
+	if width > 1 {
+		n = min(n, width-1)
+	}
+	return strings.Repeat(g.rule, n)
+}
+
+func runMenu(input io.Reader, out io.Writer, t terminal, version string, run func([]string), updates menuUpdates, autoCheck bool, raw func() (func() error, error), info menuInfo) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	status := "Self-update unavailable in this build."
 	var pending <-chan string
-	if updates.latest != nil {
-		status = releaseStatus(version, updates.cached)
-		if autoCheck && time.Since(updates.cached.Checked) >= 24*time.Hour {
-			results := make(chan string, 1)
-			pending = results
-			go func(updates menuUpdates) {
-				result, err := updates.refresh(ctx)
-				if err != nil {
-					results <- "Could not verify the latest release. " + releaseStatus(version, updates.cached)
-					return
-				}
-				results <- releaseStatus(version, result)
-			}(updates)
-			status += " Checking for updates…"
-		}
+	if updates.latest != nil && autoCheck && time.Since(updates.cached.Checked) >= 24*time.Hour {
+		results := make(chan string, 1)
+		pending = results
+		go func(updates menuUpdates) {
+			result, err := updates.refresh(ctx)
+			if err != nil {
+				results <- "Could not verify the latest release. " + releaseStatus(version, updates.cached)
+				return
+			}
+			results <- releaseStatus(version, result)
+		}(updates)
 	}
-	if _, err := io.WriteString(out, menuBanner(t, version)+"  "+status+"\n"); err != nil {
+	if _, err := io.WriteString(out, menuHeader(t, info, version, updates, pending != nil)); err != nil {
 		return err
 	}
 	reader := bufio.NewReader(input)
@@ -89,7 +212,7 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 			return -1
 		}
 		var choice int
-		choice, inputErr = pickMenu(reader, out, t, title, options, raw)
+		choice, inputErr = pickMenu(reader, out, t, info.width, title, options, raw)
 		return choice
 	}
 	prompt := func(label string) string {
@@ -101,10 +224,10 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 		return value
 	}
 	confirm := func(label string) bool {
-		return pick(label, []menuOption{{"Cancel", ""}, {"Confirm", ""}}) == 1
+		return pick(label, []menuOption{{name: "Cancel"}, {name: "Confirm"}}) == 1
 	}
 	for {
-		choice := pick("What would you like to do?", menuOptions)
+		choice := pick("", menuOptions)
 		select {
 		case status := <-pending:
 			if _, err := fmt.Fprintln(out, "  "+status); err != nil {
@@ -113,29 +236,33 @@ func runMenu(input io.Reader, out io.Writer, t terminal, version string, run fun
 			pending = nil
 		default:
 		}
-		switch choice {
-		case -1, 8:
-			if errors.Is(inputErr, io.EOF) || errors.Is(inputErr, errMenuInterrupt) {
+		id := "quit"
+		if choice >= 0 {
+			id = menuOptions[choice].id
+		}
+		switch id {
+		case "quit":
+			if inputErr == nil || errors.Is(inputErr, io.EOF) || errors.Is(inputErr, errMenuInterrupt) || errors.Is(inputErr, errMenuQuit) {
 				return nil
 			}
 			return inputErr
-		case 0:
+		case "install":
 			menuPackage(out, prompt, pick, confirm, run, "add")
-		case 1:
+		case "uninstall":
 			menuPackage(out, prompt, pick, confirm, run, "remove")
-		case 2:
+		case "update":
 			menuPackage(out, prompt, pick, confirm, run, "update")
-		case 3:
+		case "list":
 			run([]string{"agent", "list"})
 			run([]string{"skill", "list"})
-		case 4:
+		case "workspace":
 			run([]string{"status"})
-		case 5:
+		case "doctor":
 			run([]string{"doctor"})
-		case 6:
+		case "help":
 			run([]string{"--help"})
 			return nil
-		case 7:
+		case "self-update":
 			err := updates.install(ctx, out, version, confirm, run)
 			if err == errMenuExit {
 				return nil
@@ -166,7 +293,12 @@ func readMenuText(input *bufio.Reader, out io.Writer, label string, raw func() (
 		}
 		switch r {
 		case 27:
-			if _, err := skipMenuEscape(input); err != nil {
+			key, err := readMenuEscape(input)
+			if err != nil {
+				return "", err
+			}
+			if key == keyBack {
+				_, err := fmt.Fprintln(out)
 				return "", err
 			}
 		case '\r', '\n':
@@ -194,7 +326,7 @@ func readMenuText(input *bufio.Reader, out io.Writer, label string, raw func() (
 }
 
 func menuPackage(out io.Writer, prompt func(string) string, pick func(string, []menuOption) int, confirm func(string) bool, run func([]string), action string) {
-	kinds := []menuOption{{"agent", "Managed agent"}, {"skill", "Managed skill"}}
+	kinds := []menuOption{{name: "agent", description: "Managed agent"}, {name: "skill", description: "Managed skill"}}
 	selected := pick("Choose a package type", kinds)
 	if selected < 0 {
 		return
@@ -208,16 +340,13 @@ func menuPackage(out io.Writer, prompt func(string) string, pick func(string, []
 	if value == "" || strings.HasPrefix(value, "-") {
 		return
 	}
-	scopes := []menuOption{{"project", "Current project"}, {"global", "All projects for this user"}}
+	scopes := []menuOption{{name: "project", description: "Current project"}, {name: "global", description: "All projects for this user"}}
 	selected = pick("Choose a scope", scopes)
 	if selected < 0 {
 		return
 	}
 	scope := scopes[selected].name
-	args := []string{kind, action, value, "--" + scope}
-	if action == "update" {
-		args = []string{"package", "update", value, "--type", kind, "--" + scope}
-	}
+	args := menuPackageArgs(action, kind, value, scope)
 	if action == "update" || action == "add" && strings.HasPrefix(value, "https://") {
 		ref := prompt("Exact Git ref [Enter to skip for local updates] ›")
 		if ref != "" {
@@ -234,4 +363,13 @@ func menuPackage(out io.Writer, prompt func(string) string, pick func(string, []
 	if confirm("Apply this package change?") {
 		run(args)
 	}
+}
+
+// menuPackageArgs is the command a package menu flow runs before optional
+// --version and --trust are appended.
+func menuPackageArgs(action, kind, value, scope string) []string {
+	if action == "update" {
+		return []string{"package", "update", value, "--type", kind, "--" + scope}
+	}
+	return []string{kind, action, value, "--" + scope}
 }
